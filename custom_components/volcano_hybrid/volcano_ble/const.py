@@ -80,6 +80,21 @@ class VolcanoSensor(StrEnum):
     HIST1 = "hist1"
     HIST2 = "hist2"
     LAST_FAULT = "last_fault"
+    BATTERY = "battery"
+    BOOST_TEMP = "boost_temp"
+    BOOST_MODE = "boost_mode"
+    SUPERBOOST_MODE = "superboost_mode"
+    AUTO_OFF_SECONDS = "auto_off_seconds"
+    AUTO_OFF_COUNTDOWN = "auto_off_countdown"
+    CHARGE_LED = "charge_led"
+    AUTO_BLE_SHUTDOWN = "auto_ble_shutdown"
+    FIND_DEVICE = "find_device"
+    FIND_MODE = "find_mode"
+    ERROR = "error"
+    NEEDS_FACTORY_RESET = "needs_factory_reset"
+    SYSTEM_STATUS = "system_status"
+    BATTERY_STATUS1 = "battery_status1"
+    BATTERY_STATUS2 = "battery_status2"
 
 
 STORZ_BICKEL_MANUFACTURER_ID = 1736
