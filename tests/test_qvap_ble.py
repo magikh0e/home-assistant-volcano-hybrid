@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -20,6 +21,9 @@ from custom_components.volcano_hybrid.volcano_ble.qvap import (
 
 from . import make_ble_device
 from .fakes import FakeBleakClient, FakeCharacteristic, SimulatedQvap
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 ESTABLISH = "custom_components.volcano_hybrid.volcano_ble.device.establish_connection"
 QVAP = "custom_components.volcano_hybrid.volcano_ble.qvap"
@@ -257,6 +261,125 @@ async def test_command_that_reconnects_to_a_bootloader_is_refused() -> None:
     ):
         await device.async_set_heater(True)
     assert [frame[0] for frame in simulated.sent] == [f.CMD_FIRMWARE]
+    # The refused write is not left behind as a pending one.
+    assert device.data.heater_write is None
+    assert not device.data.is_assumed
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        lambda device: device.async_find_device(),
+        lambda device: device.async_set_brightness(3),
+        lambda device: device.async_set_vibration(False),
+        lambda device: device.async_set_target_temperature(190),
+    ],
+    ids=["find_device", "brightness", "vibration", "target"],
+)
+async def test_no_control_frame_reaches_a_reconnected_bootloader(
+    command: Callable[[QvapDevice], Awaitable[bool]],
+) -> None:
+    """Whatever the command, only 0x02 reaches a device found in its bootloader."""
+    device, simulated = await connect()
+    await device.async_disconnect()
+    simulated.firmware_flags = 0x00
+    simulated.sent.clear()
+    simulated.client.is_connected = True
+    with (
+        patch(ESTABLISH, AsyncMock(return_value=simulated.client)),
+        patch.object(QvapDevice, "_start_polling"),
+        pytest.raises(UnsupportedCommandError),
+    ):
+        await command(device)
+    assert [frame[0] for frame in simulated.sent] == [f.CMD_FIRMWARE]
+    assert not device.data.is_assumed
+
+
+async def test_command_after_an_unanswered_reconnect_is_not_sent() -> None:
+    """A reconnect that gets no firmware reply leaves nothing to write to."""
+    device, simulated = await connect()
+    await device.async_disconnect()
+    simulated.mute.add(f.CMD_FIRMWARE)
+    simulated.sent.clear()
+    simulated.client.is_connected = True
+    establish = AsyncMock(return_value=simulated.client)
+    with (
+        patch(ESTABLISH, establish),
+        patch(f"{QVAP}.FIRMWARE_REPLY_TIMEOUT", 0),
+        patch.object(QvapDevice, "_start_polling"),
+        pytest.raises(UnsupportedCommandError),
+    ):
+        await device.async_set_brightness(3)
+    assert [frame[0] for frame in simulated.sent] == [f.CMD_FIRMWARE]
+    assert establish.await_count == 1
+
+
+async def test_pending_write_does_not_survive_a_reconnect_into_the_bootloader() -> None:
+    """A queued write is dropped, not replayed or raised, in the bootloader."""
+    device, simulated = await connect()
+    simulated.mute.add(f.CMD_STATUS)
+    await device.async_set_target_temperature(200)
+    assert device.data.is_assumed
+    await device.async_disconnect()
+    simulated.mute.clear()
+    simulated.firmware_flags = 0x00
+    simulated.sent.clear()
+    simulated.client.is_connected = True
+    with (
+        patch(ESTABLISH, AsyncMock(return_value=simulated.client)),
+        patch.object(QvapDevice, "_start_polling"),
+    ):
+        await device.async_manual_update()
+    assert device.data.bootloader_mode is True
+    assert not device.data.is_assumed
+    assert [frame[0] for frame in simulated.sent] == [f.CMD_FIRMWARE]
+
+
+async def test_pending_writes_are_not_replayed_while_disconnected() -> None:
+    """Replaying needs a connection whose mode is known."""
+    device, simulated = await connect()
+    simulated.mute.add(f.CMD_STATUS)
+    await device.async_set_target_temperature(200)
+    simulated.client.is_connected = False
+    simulated.sent.clear()
+    await device._async_try_ensure_written_values()  # noqa: SLF001
+    assert simulated.sent == []
+    assert device.data.set_temp_write == 200
+
+
+async def test_failed_subscription_disconnects() -> None:
+    """A connect whose notify subscription fails is dropped, not kept half-alive."""
+    client = _client()
+    simulated = SimulatedQvap(client)
+    client.start_notify = AsyncMock(  # type: ignore[method-assign]
+        side_effect=BleakError("no notify")
+    )
+    device = VentyDevice(lambda: None, lambda: None)
+    with (
+        patch(ESTABLISH, AsyncMock(return_value=client)),
+        patch.object(QvapDevice, "_start_polling") as start_polling,
+    ):
+        await device.async_manual_update(make_ble_device(name="S&B VY123456"))
+    assert not device.is_connected
+    assert simulated.sent == []
+    start_polling.assert_not_called()
+
+
+async def test_failed_firmware_write_disconnects() -> None:
+    """A connect whose firmware query cannot be written is dropped."""
+    client = _client()
+    simulated = SimulatedQvap(client)
+    simulated.fail.add(f.CMD_FIRMWARE)
+    device = VentyDevice(lambda: None, lambda: None)
+    with (
+        patch(ESTABLISH, AsyncMock(return_value=client)),
+        patch.object(QvapDevice, "_start_polling") as start_polling,
+    ):
+        await device.async_manual_update(make_ble_device(name="S&B VY123456"))
+    assert not device.is_connected
+    assert device.data.bootloader_mode is None
+    assert simulated.sent == []
+    start_polling.assert_not_called()
 
 
 async def test_forbidden_commands_are_never_sent() -> None:
@@ -387,6 +510,24 @@ async def test_bleak_error_while_polling_disconnects() -> None:
         assert task is not None
         await asyncio.wait({task})
     assert poll_once.await_count == 1
+    assert not device.is_connected
+    assert device._poll_task is None  # noqa: SLF001
+
+
+async def test_unexpected_error_while_polling_disconnects() -> None:
+    """Any other failure also disconnects and ends the loop cleanly."""
+    device, _ = await connect()
+    with (
+        patch(f"{QVAP}.QVAP_POLL_INTERVAL", 0),
+        patch.object(
+            device, "_async_poll_once", AsyncMock(side_effect=RuntimeError("bug"))
+        ),
+    ):
+        device._start_polling()  # noqa: SLF001
+        task = device._poll_task  # noqa: SLF001
+        assert task is not None
+        await asyncio.wait({task})
+    assert task.exception() is None
     assert not device.is_connected
     assert device._poll_task is None  # noqa: SLF001
 

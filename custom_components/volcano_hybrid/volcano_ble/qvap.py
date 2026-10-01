@@ -16,7 +16,7 @@ from .qvap_data import QvapData, VeazyData, VentyData
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from bleak import BLEDevice
+    from bleak import BleakClient, BLEDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,29 +66,44 @@ class QvapDevice(StorzBickelDevice):
         # Whatever the device was last time, it may have entered its bootloader
         # since: nothing but the firmware query is sent until it says again.
         self.data.forget_mode()
+        # A half-finished init would leave a connection nothing ever re-reads
+        # (no mode, no poll): drop it so the coordinator's reconnect retries.
+        try:
+            if not await self._async_init_sequence(client):
+                _LOGGER.debug("No firmware reply from the %s", self.family)
+                await self.async_disconnect()
+                return
+        except BleakError as err:
+            _LOGGER.debug("Initialising the %s failed: %s", self.family, err)
+            await self.async_disconnect()
+            return
+        _LOGGER.debug("Initial %s frames read", self.family)
+        self._after_data_updated()
+        self._after_device_updated()
+        if self.data.bootloader_mode is False:
+            self._start_polling()
+
+    async def _async_init_sequence(self, client: BleakClient) -> bool:
+        """Subscribe and send the connect sequence; False without a firmware reply."""
         control = self._get_characteristic(client, SERVICE_UUID, CHAR_CONTROL)
         await client.start_notify(control, self._on_notify)
         await self._async_read_optional(
             GAP_SERVICE_UUID, CHAR_GAP_NAME, self._parse_gap_name
         )
         if not await self._async_query_firmware():
-            _LOGGER.debug("No firmware reply from the %s, disconnecting", self.family)
-            await self.async_disconnect()
-            return
+            return False
         if self.data.bootloader_mode is False:
             for cmd in INIT_COMMANDS:
                 await self._async_write_frame(f.build_request(cmd))
             await self._async_write_frame(f.build_settings6_write(0))
         else:
+            # Queued commands are for the application; never replay them here.
+            self.data.clear_open_writes()
             _LOGGER.warning(
                 "The %s is in its bootloader; it is reported, not controlled",
                 self.family,
             )
-        _LOGGER.debug("Initial %s frames read", self.family)
-        self._after_data_updated()
-        self._after_device_updated()
-        if self.data.bootloader_mode is False:
-            self._start_polling()
+        return True
 
     async def _async_query_firmware(self) -> bool:
         """Ask for the firmware info and wait for the reply (spec §3.1)."""
@@ -144,6 +159,11 @@ class QvapDevice(StorzBickelDevice):
         except BleakError as err:
             _LOGGER.debug("Polling the %s failed, disconnecting: %s", self.family, err)
             await self.async_disconnect()
+        except Exception:
+            # Anything else would end the loop silently and leave a connection
+            # nobody polls; disconnect so the coordinator reconnects.
+            _LOGGER.exception("Unexpected error polling the %s", self.family)
+            await self.async_disconnect()
 
     async def _async_poll_once(self) -> None:
         """One poll: the status, and every 30th time the slow-moving values."""
@@ -162,10 +182,11 @@ class QvapDevice(StorzBickelDevice):
         if cmd in f.FORBIDDEN_COMMANDS:
             msg = f"command 0x{cmd:02x} is never sent (spec §3.8)"
             raise UnsupportedCommandError(msg)
-        # In the bootloader 0x01 is the page-write command (spec §3.8), so it
-        # waits until the firmware reply has said the application runs.
-        if cmd == f.CMD_STATUS and self.data.bootloader_mode is not False:
-            msg = "command 0x01 is only sent to a device running its application"
+        # Only the firmware query (which tells the modes apart) goes to a device
+        # whose mode is not known; in the bootloader 0x01 is even the page-write
+        # command (spec §3.8), and nothing else is documented there.
+        if cmd != f.CMD_FIRMWARE and self.data.bootloader_mode is not False:
+            msg = f"command 0x{cmd:02x} is only sent to a running application"
             raise UnsupportedCommandError(msg)
 
     async def _async_write_frame(self, frame: bytes) -> bool:
@@ -177,7 +198,14 @@ class QvapDevice(StorzBickelDevice):
         if not await self._ensure_client_connected():
             return False
         self._check_sendable(cmd)
-        return await self._write_gatt(SERVICE_UUID, CHAR_CONTROL, bytearray(frame))
+        # Written directly rather than through _write_gatt, which would connect
+        # again (unchecked) if the connection above was dropped meanwhile.
+        client = self.client
+        if client is None or not client.is_connected:
+            return False
+        char = self._get_characteristic(client, SERVICE_UUID, CHAR_CONTROL)
+        await client.write_gatt_char(char, bytearray(frame))
+        return True
 
     async def _on_notify(self, _: object, data: bytearray) -> None:
         frame = bytes(data)
@@ -229,7 +257,11 @@ class QvapDevice(StorzBickelDevice):
         """Switch between off and normal heating; the reply confirms."""
         self._require_application()
         self.data.heater_write = on
-        written = await self._async_write_frame(f.build_heater_write(on))
+        try:
+            written = await self._async_write_frame(f.build_heater_write(on))
+        except UnsupportedCommandError:
+            self.data.heater_write = None
+            raise
         self._after_data_updated()
         return written
 
@@ -237,7 +269,11 @@ class QvapDevice(StorzBickelDevice):
         """Set the base target temperature."""
         self._require_application()
         self.data.set_temp_write = int(target)
-        written = await self._async_write_frame(f.build_target_write(int(target)))
+        try:
+            written = await self._async_write_frame(f.build_target_write(int(target)))
+        except UnsupportedCommandError:
+            self.data.set_temp_write = None
+            raise
         self._after_data_updated()
         return written
 
@@ -316,6 +352,8 @@ class QvapDevice(StorzBickelDevice):
     # -- pending writes ----------------------------------------------------
 
     async def _async_try_ensure_written_values(self) -> None:
+        if not self.is_connected or self.data.bootloader_mode is not False:
+            return
         if (
             self.data.heater_needs_write or self.data.set_temp_needs_write
         ) and not self.data.is_on:

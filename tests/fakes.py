@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from bleak import BleakError
+
 from . import VOLCANO_ADDRESS
 
 if TYPE_CHECKING:
@@ -85,7 +87,8 @@ class SimulatedQvap:
     Every write to the control characteristic is answered through the notify
     callback with the full reply for that command, the way the device does:
     a status write is applied to the state and answered with the new status.
-    Commands listed in ``mute`` are recorded but never answered.
+    Commands listed in ``mute`` are recorded but never answered; writing one
+    listed in ``fail`` raises BleakError, as a dropped link does.
     """
 
     def __init__(self, client: FakeBleakClient, *, veazy: bool = False) -> None:
@@ -102,12 +105,16 @@ class SimulatedQvap:
         self.settings6 = bytearray([0x06, 0, 7, 0, 0, 1, 0])
         self.sent: list[bytes] = []
         self.mute: set[int] = set()
+        self.fail: set[int] = set()
         client.write_gatt_char = self._write  # type: ignore[method-assign]
 
     async def _write(
         self, char: FakeCharacteristic, value: bytearray, response: bool = True
     ) -> None:
         frame = bytes(value)
+        if frame[0] in self.fail:
+            msg = f"write of 0x{frame[0]:02x} failed"
+            raise BleakError(msg)
         self.client.written.append((char.uuid, frame))
         self.sent.append(frame)
         if frame[0] in self.mute:
