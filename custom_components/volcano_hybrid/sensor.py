@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
     UnitOfTime,
@@ -184,6 +185,42 @@ SENSOR_DESCRIPTIONS: dict[str, VolcanoSensorEntityDescription] = {
         entity_registry_enabled_default=False,
         attributes_fn=_fault_log_attributes,
     ),
+    VolcanoSensor.BATTERY: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.BATTERY,
+        translation_key=VolcanoSensor.BATTERY,
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    VolcanoSensor.AUTO_OFF_COUNTDOWN: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.AUTO_OFF_COUNTDOWN,
+        translation_key=VolcanoSensor.AUTO_OFF_COUNTDOWN,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+    ),
+    # The Crafty's other status words, undecoded like the Volcano's PRJ words.
+    VolcanoSensor.SYSTEM_STATUS: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.SYSTEM_STATUS,
+        translation_key=VolcanoSensor.SYSTEM_STATUS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=format_register,
+    ),
+    VolcanoSensor.BATTERY_STATUS1: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.BATTERY_STATUS1,
+        translation_key=VolcanoSensor.BATTERY_STATUS1,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=format_register,
+    ),
+    VolcanoSensor.BATTERY_STATUS2: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.BATTERY_STATUS2,
+        translation_key=VolcanoSensor.BATTERY_STATUS2,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=format_register,
+    ),
 }
 
 
@@ -203,6 +240,11 @@ SENSOR_KEYS: tuple[tuple[VolcanoSensor, bool], ...] = (
     (VolcanoSensor.HIST1, False),
     (VolcanoSensor.HIST2, False),
     (VolcanoSensor.LAST_FAULT, False),
+    (VolcanoSensor.BATTERY, False),
+    (VolcanoSensor.AUTO_OFF_COUNTDOWN, False),
+    (VolcanoSensor.SYSTEM_STATUS, False),
+    (VolcanoSensor.BATTERY_STATUS1, False),
+    (VolcanoSensor.BATTERY_STATUS2, False),
 )
 
 

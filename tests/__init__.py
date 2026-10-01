@@ -198,5 +198,53 @@ class FakeDevice(VolcanoHybridDataStatusProvider):
         """Set the LED brightness."""
         return self._command("led_brightness", brightness)
 
+    async def async_set_boost_temperature(self, offset: int) -> bool:
+        """Record the command."""
+        return self._command("boost_temp", offset)
+
+    async def async_set_superboost_temperature(self, offset: int) -> bool:
+        """Record the command."""
+        return self._command("superboost_temp", offset)
+
+    async def async_set_auto_off_seconds(self, seconds: int) -> bool:
+        """Record the command."""
+        return self._command("auto_off_seconds", seconds)
+
+    async def async_set_charge_led(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("charge_led", on)
+
+    async def async_set_auto_ble_shutdown(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("auto_ble_shutdown", on)
+
+    async def async_find_device(self) -> bool:
+        """Record the command."""
+        return self._command("find_device", None)
+
+    async def async_set_charge_optimization(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("charge_optimization", on)
+
+    async def async_set_charge_limit(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("charge_limit", on)
+
+    async def async_set_boost_visualization(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("boost_visualization", on)
+
+    async def async_set_boost_timeout_disabled(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("boost_timeout_disabled", on)
+
+    async def async_set_permanent_bluetooth(self, on: bool) -> bool:
+        """Record the command."""
+        return self._command("permanent_bluetooth", on)
+
+    async def async_set_brightness(self, brightness: int) -> bool:
+        """Record the command."""
+        return self._command("brightness", brightness)
+
 
 FakeVolcanoBLE = FakeDevice

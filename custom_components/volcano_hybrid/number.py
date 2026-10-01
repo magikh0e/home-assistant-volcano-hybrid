@@ -8,7 +8,12 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -42,12 +47,37 @@ SENSOR_DESCRIPTIONS: dict[str, NumberEntityDescription] = {
         native_unit_of_measurement=PERCENTAGE,
         entity_registry_enabled_default=False,
     ),
+    VolcanoSensor.BOOST_TEMP: NumberEntityDescription(
+        key=VolcanoSensor.BOOST_TEMP,
+        translation_key=VolcanoSensor.BOOST_TEMP,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.BOX,
+        native_min_value=1,
+        native_max_value=99,
+        native_step=1,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+    ),
+    VolcanoSensor.AUTO_OFF_SECONDS: NumberEntityDescription(
+        key=VolcanoSensor.AUTO_OFF_SECONDS,
+        translation_key=VolcanoSensor.AUTO_OFF_SECONDS,
+        device_class=NumberDeviceClass.DURATION,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.BOX,
+        native_min_value=0,
+        native_max_value=300,
+        native_step=10,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        entity_registry_enabled_default=False,
+    ),
 }
 
 
 NUMBER_KEYS: tuple[VolcanoSensor, ...] = (
     VolcanoSensor.SHUT_OFF,
     VolcanoSensor.LED_BRIGHTNESS,
+    VolcanoSensor.BOOST_TEMP,
+    VolcanoSensor.AUTO_OFF_SECONDS,
 )
 
 

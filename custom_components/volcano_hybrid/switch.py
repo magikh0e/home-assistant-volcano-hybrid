@@ -49,6 +49,20 @@ SENSOR_DESCRIPTIONS: dict[str, SwitchEntityDescription] = {
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
+    VolcanoSensor.CHARGE_LED: SwitchEntityDescription(
+        key=VolcanoSensor.CHARGE_LED,
+        translation_key=VolcanoSensor.CHARGE_LED,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.AUTO_BLE_SHUTDOWN: SwitchEntityDescription(
+        key=VolcanoSensor.AUTO_BLE_SHUTDOWN,
+        translation_key=VolcanoSensor.AUTO_BLE_SHUTDOWN,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+    ),
 }
 
 
@@ -56,6 +70,8 @@ SWITCH_KEYS: tuple[VolcanoSensor, ...] = (
     VolcanoSensor.SHOWING_CELSIUS,
     VolcanoSensor.DISPLAY_ON_COOLING,
     VolcanoSensor.VIBRATION,
+    VolcanoSensor.CHARGE_LED,
+    VolcanoSensor.AUTO_BLE_SHUTDOWN,
 )
 
 

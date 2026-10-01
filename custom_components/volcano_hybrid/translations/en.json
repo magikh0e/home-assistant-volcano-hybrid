@@ -43,14 +43,26 @@
             "auto_shutdown": {
                 "name": "Auto shutdown enabled"
             },
+            "boost_mode": {
+                "name": "Boost"
+            },
             "connected": {
                 "name": "Connected"
+            },
+            "error": {
+                "name": "Error"
             },
             "fan": {
                 "name": "Pump running"
             },
+            "find_mode": {
+                "name": "Find mode active"
+            },
             "heater": {
                 "name": "Heater running"
+            },
+            "needs_factory_reset": {
+                "name": "Needs factory reset"
             },
             "prv1_error": {
                 "name": "Prv1 error"
@@ -60,17 +72,29 @@
             },
             "service_mode": {
                 "name": "Service mode"
+            },
+            "superboost_mode": {
+                "name": "Superboost"
             }
         },
         "button": {
             "delayed_reconnect": {
                 "name": "(Re)connect after delay"
             },
+            "find_device": {
+                "name": "Find device"
+            },
             "reconnect": {
                 "name": "(Re)connect"
             }
         },
         "number": {
+            "auto_off_seconds": {
+                "name": "Auto off time"
+            },
+            "boost_temp": {
+                "name": "Boost temperature"
+            },
             "led_brightness": {
                 "name": "LED Brightness"
             },
@@ -79,6 +103,18 @@
             }
         },
         "sensor": {
+            "auto_off_countdown": {
+                "name": "Auto off countdown"
+            },
+            "battery": {
+                "name": "Battery"
+            },
+            "battery_status1": {
+                "name": "Battery status 1"
+            },
+            "battery_status2": {
+                "name": "Battery status 2"
+            },
             "connected_addr": {
                 "name": "Connected address"
             },
@@ -135,11 +171,20 @@
             },
             "rssi": {
                 "name": "Signal strength"
+            },
+            "system_status": {
+                "name": "System status"
             }
         },
         "switch": {
+            "auto_ble_shutdown": {
+                "name": "Automatic Bluetooth shutdown"
+            },
             "auto_connect": {
                 "name": "Auto connect"
+            },
+            "charge_led": {
+                "name": "Charge LED"
             },
             "display_on_cooling": {
                 "name": "Display on when cooling"

@@ -294,6 +294,56 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[DeviceData]):
             self._device.async_set_led_brightness(int(brightness))
         )
 
+    async def set_boost_temp(self, offset: float) -> None:
+        """Set the boost offset."""
+        await self._async_command(self._device.async_set_boost_temperature(int(offset)))
+
+    async def set_superboost_temp(self, offset: float) -> None:
+        """Set the superboost offset."""
+        await self._async_command(
+            self._device.async_set_superboost_temperature(int(offset))
+        )
+
+    async def set_auto_off_seconds(self, seconds: float) -> None:
+        """Set the auto-off time in seconds."""
+        await self._async_command(self._device.async_set_auto_off_seconds(int(seconds)))
+
+    async def set_charge_led(self, on: bool) -> None:
+        """Enable or disable the charge LED."""
+        await self._async_command(self._device.async_set_charge_led(on))
+
+    async def set_auto_ble_shutdown(self, on: bool) -> None:
+        """Enable or disable automatic Bluetooth shutdown."""
+        await self._async_command(self._device.async_set_auto_ble_shutdown(on))
+
+    async def find_device(self) -> None:
+        """Make the device signal so it can be found."""
+        await self._async_command(self._device.async_find_device())
+
+    async def set_charge_optimization(self, on: bool) -> None:
+        """Enable or disable charge optimisation."""
+        await self._async_command(self._device.async_set_charge_optimization(on))
+
+    async def set_charge_limit(self, on: bool) -> None:
+        """Enable or disable the charge limit."""
+        await self._async_command(self._device.async_set_charge_limit(on))
+
+    async def set_boost_visualization(self, on: bool) -> None:
+        """Show or hide boost on the display."""
+        await self._async_command(self._device.async_set_boost_visualization(on))
+
+    async def set_boost_timeout_disabled(self, on: bool) -> None:
+        """Disable or re-enable the boost timeout."""
+        await self._async_command(self._device.async_set_boost_timeout_disabled(on))
+
+    async def set_permanent_bluetooth(self, on: bool) -> None:
+        """Keep Bluetooth on while the device sleeps."""
+        await self._async_command(self._device.async_set_permanent_bluetooth(on))
+
+    async def set_brightness(self, brightness: float) -> None:
+        """Set the display brightness 1-9."""
+        await self._async_command(self._device.async_set_brightness(int(brightness)))
+
     async def reconnect(self) -> None:
         """Reconnect immediately, regardless of the auto-connect setting."""
         self._cancel_connect_timer()

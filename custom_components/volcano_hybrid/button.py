@@ -37,6 +37,11 @@ SENSOR_DESCRIPTIONS: dict[str, ButtonEntityDescription] = {
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
+    VolcanoSensor.FIND_DEVICE: ButtonEntityDescription(
+        key=VolcanoSensor.FIND_DEVICE,
+        translation_key=VolcanoSensor.FIND_DEVICE,
+        device_class=ButtonDeviceClass.IDENTIFY,
+    ),
 }
 
 
@@ -56,14 +61,17 @@ async def async_setup_entry(
         """Reconnect to the Volcano Hybrid after the configured delay."""
         await coordinator.delayed_reconnect()
 
-    buttons: tuple[tuple[VolcanoSensor, Callable[[], Awaitable[None]]], ...] = (
-        (VolcanoSensor.RECONNECT, _async_reconnect),
-        (VolcanoSensor.DELAYED_RECONNECT, _async_delayed_reconnect),
+    buttons: tuple[tuple[VolcanoSensor, Callable[[], Awaitable[None]], bool], ...] = (
+        (VolcanoSensor.RECONNECT, _async_reconnect, True),
+        (VolcanoSensor.DELAYED_RECONNECT, _async_delayed_reconnect, True),
+        (VolcanoSensor.FIND_DEVICE, coordinator.find_device, False),
     )
     capabilities = coordinator.data.capabilities
     async_add_entities(
-        VolcanoButtonEntity(coordinator, key, callback)
-        for key, callback in buttons
+        VolcanoButtonEntity(
+            coordinator, key, callback, always_available=always_available
+        )
+        for key, callback, always_available in buttons
         if key in capabilities
     )
 
@@ -76,9 +84,13 @@ class VolcanoButtonEntity(VolcanoHybridEntity, ButtonEntity):
         coordinator: VolcanoHybridCoordinator,
         key: VolcanoSensor,
         async_callback: Callable[[], Awaitable[None]],
+        *,
+        always_available: bool = True,
     ) -> None:
         """Initialize the button."""
-        super().__init__(coordinator, SENSOR_DESCRIPTIONS[key], always_available=True)
+        super().__init__(
+            coordinator, SENSOR_DESCRIPTIONS[key], always_available=always_available
+        )
         self._async_on_click_callback = async_callback
 
     async def async_press(self) -> None:

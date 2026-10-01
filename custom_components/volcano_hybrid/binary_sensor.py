@@ -80,6 +80,36 @@ SENSOR_DESCRIPTIONS: dict[str, BinarySensorEntityDescription] = {
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_registry_enabled_default=True,
     ),
+    VolcanoSensor.BOOST_MODE: BinarySensorEntityDescription(
+        key=VolcanoSensor.BOOST_MODE,
+        translation_key=VolcanoSensor.BOOST_MODE,
+        entity_registry_enabled_default=True,
+    ),
+    VolcanoSensor.SUPERBOOST_MODE: BinarySensorEntityDescription(
+        key=VolcanoSensor.SUPERBOOST_MODE,
+        translation_key=VolcanoSensor.SUPERBOOST_MODE,
+        entity_registry_enabled_default=True,
+    ),
+    VolcanoSensor.ERROR: BinarySensorEntityDescription(
+        key=VolcanoSensor.ERROR,
+        translation_key=VolcanoSensor.ERROR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_registry_enabled_default=True,
+    ),
+    VolcanoSensor.NEEDS_FACTORY_RESET: BinarySensorEntityDescription(
+        key=VolcanoSensor.NEEDS_FACTORY_RESET,
+        translation_key=VolcanoSensor.NEEDS_FACTORY_RESET,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.FIND_MODE: BinarySensorEntityDescription(
+        key=VolcanoSensor.FIND_MODE,
+        translation_key=VolcanoSensor.FIND_MODE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
 }
 
 
@@ -94,6 +124,11 @@ BINARY_SENSOR_KEYS: tuple[tuple[VolcanoSensor, bool, bool | None], ...] = (
     (VolcanoSensor.SERVICE_MODE, False, None),
     (VolcanoSensor.PRV1_ERROR, False, None),
     (VolcanoSensor.PRV2_ERROR, False, None),
+    (VolcanoSensor.BOOST_MODE, False, None),
+    (VolcanoSensor.SUPERBOOST_MODE, False, None),
+    (VolcanoSensor.ERROR, False, None),
+    (VolcanoSensor.NEEDS_FACTORY_RESET, False, None),
+    (VolcanoSensor.FIND_MODE, False, None),
     (VolcanoSensor.CONNECTED, True, False),
 )
 

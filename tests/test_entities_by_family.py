@@ -57,6 +57,34 @@ GOLDEN_ENTITIES: dict[DeviceFamily, dict[str, set[str]]] = {
         "button": {"reconnect", "delayed_reconnect"},
         "update": {"firmware"},
     },
+    DeviceFamily.CRAFTY: {
+        "climate": {"volcano"},
+        "number": {"boost_temp", "led_brightness", "auto_off_seconds"},
+        "switch": {"vibration", "charge_led", "auto_ble_shutdown", "auto_connect"},
+        "sensor": {
+            "battery",
+            "auto_off_countdown",
+            "heat_time",
+            "rssi",
+            "connected_addr",
+            "prj1",
+            "prj2",
+            "system_status",
+            "battery_status1",
+            "battery_status2",
+        },
+        "binary_sensor": {
+            "at_temperature",
+            "heater",
+            "boost_mode",
+            "superboost_mode",
+            "error",
+            "needs_factory_reset",
+            "find_mode",
+            "connected",
+        },
+        "button": {"reconnect", "delayed_reconnect", "find_device"},
+    },
 }
 
 

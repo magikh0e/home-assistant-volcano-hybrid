@@ -74,6 +74,21 @@
       },
       "connected": {
         "name": "Connected"
+      },
+      "boost_mode": {
+        "name": "Boost"
+      },
+      "superboost_mode": {
+        "name": "Superboost"
+      },
+      "error": {
+        "name": "Error"
+      },
+      "needs_factory_reset": {
+        "name": "Needs factory reset"
+      },
+      "find_mode": {
+        "name": "Find mode active"
       }
     },
     "button": {
@@ -82,6 +97,9 @@
       },
       "delayed_reconnect": {
         "name": "(Re)connect after delay"
+      },
+      "find_device": {
+        "name": "Find device"
       }
     },
     "number": {
@@ -90,6 +108,12 @@
       },
       "led_brightness": {
         "name": "LED Brightness"
+      },
+      "boost_temp": {
+        "name": "Boost temperature"
+      },
+      "auto_off_seconds": {
+        "name": "Auto off time"
       }
     },
     "sensor": {
@@ -149,6 +173,21 @@
           "heater_feedback_deviation": "Heater feedback deviation",
           "unknown_code": "Unrecognised fault code"
         }
+      },
+      "battery": {
+        "name": "Battery"
+      },
+      "auto_off_countdown": {
+        "name": "Auto off countdown"
+      },
+      "system_status": {
+        "name": "System status"
+      },
+      "battery_status1": {
+        "name": "Battery status 1"
+      },
+      "battery_status2": {
+        "name": "Battery status 2"
       }
     },
     "switch": {
@@ -163,6 +202,12 @@
       },
       "auto_connect": {
         "name": "Auto connect"
+      },
+      "charge_led": {
+        "name": "Charge LED"
+      },
+      "auto_ble_shutdown": {
+        "name": "Automatic Bluetooth shutdown"
       }
     },
     "update": {
