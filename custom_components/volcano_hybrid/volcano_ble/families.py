@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .const import DeviceFamily
-from .crafty_data import CraftyData
+from .crafty import CraftyDevice
 from .volcano_ble import VolcanoDevice
 
 if TYPE_CHECKING:
@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 
 DEVICE_CLASSES: dict[DeviceFamily, type[StorzBickelDevice]] = {
     DeviceFamily.VOLCANO_HYBRID: VolcanoDevice,
+    DeviceFamily.CRAFTY: CraftyDevice,
 }
 DATA_CLASSES: dict[DeviceFamily, type[DeviceData]] = {
-    DeviceFamily.VOLCANO_HYBRID: VolcanoDevice.data_class,
-    DeviceFamily.CRAFTY: CraftyData,
+    family: cls.data_class for family, cls in DEVICE_CLASSES.items()
 }
 
 
