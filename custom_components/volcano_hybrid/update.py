@@ -43,7 +43,9 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Volcano firmware update entity."""
-    async_add_entities([VolcanoUpdateEntity(entry.runtime_data)])
+    coordinator = entry.runtime_data
+    if VolcanoSensor.FIRMWARE in coordinator.data.capabilities:
+        async_add_entities([VolcanoUpdateEntity(coordinator)])
 
 
 class VolcanoUpdateEntity(VolcanoHybridEntity, UpdateEntity):

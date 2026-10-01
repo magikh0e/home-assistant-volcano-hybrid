@@ -17,7 +17,6 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import VOLCANO_HYBRID_MAX_TEMP, VOLCANO_HYBRID_MIN_DISPLAY_TEMP
 from .coordinator import VolcanoHybridConfigEntry, VolcanoHybridCoordinator
 from .entity import VolcanoHybridEntity
 from .volcano_ble import VolcanoSensor
@@ -39,11 +38,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up the climate entity for Volcano Hybrid."""
     coordinator = config_entry.runtime_data
-    async_add_entities(
-        [
-            VolcanoHybridClimate(coordinator, VolcanoSensor.VOLCANO),
-        ]
-    )
+    if VolcanoSensor.VOLCANO in coordinator.data.capabilities:
+        async_add_entities([VolcanoHybridClimate(coordinator, VolcanoSensor.VOLCANO)])
 
 
 class VolcanoHybridClimate(VolcanoHybridEntity, ClimateEntity):
@@ -51,20 +47,25 @@ class VolcanoHybridClimate(VolcanoHybridEntity, ClimateEntity):
 
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
-    _attr_fan_modes = [FAN_OFF, FAN_ON]
-    _attr_min_temp = VOLCANO_HYBRID_MIN_DISPLAY_TEMP
-    _attr_max_temp = VOLCANO_HYBRID_MAX_TEMP
     _attr_target_temperature_step = 1
-    _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.FAN_MODE
-        | ClimateEntityFeature.TURN_OFF
-        | ClimateEntityFeature.TURN_ON
-    )
 
     def __init__(self, coordinator: VolcanoHybridCoordinator, key: str) -> None:
         """Initialize the climate."""
         super().__init__(coordinator, SENSOR_DESCRIPTIONS[key])
+        data = coordinator.data
+        self._attr_min_temp = data.MIN_DISPLAY_TEMP
+        self._attr_max_temp = data.MAX_TEMP
+        features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_OFF
+            | ClimateEntityFeature.TURN_ON
+        )
+        # Only the Volcano has a pump; the portable devices have no fan mode.
+        self._has_fan = VolcanoSensor.PUMP_ACTIVE in data.capabilities
+        if self._has_fan:
+            features |= ClimateEntityFeature.FAN_MODE
+            self._attr_fan_modes = [FAN_OFF, FAN_ON]
+        self._attr_supported_features = features
         # Seed from the coordinator instead of inventing values: the entity
         # writes its first state before the first coordinator update, so made
         # up defaults end up in the recorder as if they were readings.
@@ -97,11 +98,12 @@ class VolcanoHybridClimate(VolcanoHybridEntity, ClimateEntity):
                 HVACAction.IDLE if data.is_cooling else HVACAction.OFF
             )
 
-        fan_state = data.get("fan_state")
-        if fan_state is None:
-            self._attr_fan_mode = None
-        else:
-            self._attr_fan_mode = FAN_ON if fan_state else FAN_OFF
+        if self._has_fan:
+            fan_state = data.get("fan_state")
+            if fan_state is None:
+                self._attr_fan_mode = None
+            else:
+                self._attr_fan_mode = FAN_ON if fan_state else FAN_OFF
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""

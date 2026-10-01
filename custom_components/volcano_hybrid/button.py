@@ -56,15 +56,15 @@ async def async_setup_entry(
         """Reconnect to the Volcano Hybrid after the configured delay."""
         await coordinator.delayed_reconnect()
 
+    buttons: tuple[tuple[VolcanoSensor, Callable[[], Awaitable[None]]], ...] = (
+        (VolcanoSensor.RECONNECT, _async_reconnect),
+        (VolcanoSensor.DELAYED_RECONNECT, _async_delayed_reconnect),
+    )
+    capabilities = coordinator.data.capabilities
     async_add_entities(
-        [
-            VolcanoButtonEntity(coordinator, VolcanoSensor.RECONNECT, _async_reconnect),
-            VolcanoButtonEntity(
-                coordinator,
-                VolcanoSensor.DELAYED_RECONNECT,
-                _async_delayed_reconnect,
-            ),
-        ]
+        VolcanoButtonEntity(coordinator, key, callback)
+        for key, callback in buttons
+        if key in capabilities
     )
 
 

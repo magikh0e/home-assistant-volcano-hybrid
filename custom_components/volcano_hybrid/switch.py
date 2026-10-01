@@ -52,21 +52,29 @@ SENSOR_DESCRIPTIONS: dict[str, SwitchEntityDescription] = {
 }
 
 
+SWITCH_KEYS: tuple[VolcanoSensor, ...] = (
+    VolcanoSensor.SHOWING_CELSIUS,
+    VolcanoSensor.DISPLAY_ON_COOLING,
+    VolcanoSensor.VIBRATION,
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: VolcanoHybridConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Volcano BLE switches."""
+    """Set up the switches the device family supports."""
     coordinator = entry.runtime_data
-    async_add_entities(
-        [
-            VolcanoSwitchEntity(coordinator, VolcanoSensor.SHOWING_CELSIUS),
-            VolcanoSwitchEntity(coordinator, VolcanoSensor.DISPLAY_ON_COOLING),
-            VolcanoSwitchEntity(coordinator, VolcanoSensor.VIBRATION),
-            VolcanoAutoConnectSwitch(coordinator),
-        ]
-    )
+    capabilities = coordinator.data.capabilities
+    entities: list[SwitchEntity] = [
+        VolcanoSwitchEntity(coordinator, key)
+        for key in SWITCH_KEYS
+        if key in capabilities
+    ]
+    if VolcanoSensor.AUTO_CONNECT in capabilities:
+        entities.append(VolcanoAutoConnectSwitch(coordinator))
+    async_add_entities(entities)
 
 
 class VolcanoSwitchEntity(VolcanoHybridEntity, SwitchEntity):

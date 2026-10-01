@@ -45,19 +45,24 @@ SENSOR_DESCRIPTIONS: dict[str, NumberEntityDescription] = {
 }
 
 
+NUMBER_KEYS: tuple[VolcanoSensor, ...] = (
+    VolcanoSensor.SHUT_OFF,
+    VolcanoSensor.LED_BRIGHTNESS,
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: VolcanoHybridConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Volcano BLE numbers."""
+    """Set up the numbers the device family supports."""
     coordinator = entry.runtime_data
-
+    capabilities = coordinator.data.capabilities
     async_add_entities(
-        [
-            VolcanoNumberEntity(coordinator, VolcanoSensor.SHUT_OFF),
-            VolcanoNumberEntity(coordinator, VolcanoSensor.LED_BRIGHTNESS),
-        ]
+        VolcanoNumberEntity(coordinator, key)
+        for key in NUMBER_KEYS
+        if key in capabilities
     )
 
 

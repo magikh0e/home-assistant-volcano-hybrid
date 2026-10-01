@@ -187,33 +187,37 @@ SENSOR_DESCRIPTIONS: dict[str, VolcanoSensorEntityDescription] = {
 }
 
 
+# (key, always_available) in the order the entities were always created.
+SENSOR_KEYS: tuple[tuple[VolcanoSensor, bool], ...] = (
+    (VolcanoSensor.CURRENT_AUTO_OFF_TIME, False),
+    (VolcanoSensor.CURRENT_ON_TIME, False),
+    (VolcanoSensor.HEAT_TIME, False),
+    (VolcanoSensor.RSSI, True),
+    (VolcanoSensor.CONNECTED_ADDR, True),
+    (VolcanoSensor.MAINS_VOLTAGE, False),
+    (VolcanoSensor.PRJ1, False),
+    (VolcanoSensor.PRJ2, False),
+    (VolcanoSensor.PRJ3, False),
+    (VolcanoSensor.PRJ4, False),
+    (VolcanoSensor.PRJ5, False),
+    (VolcanoSensor.HIST1, False),
+    (VolcanoSensor.HIST2, False),
+    (VolcanoSensor.LAST_FAULT, False),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: VolcanoHybridConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Volcano BLE sensors."""
+    """Set up the sensors the device family supports."""
     coordinator = entry.runtime_data
-
+    capabilities = coordinator.data.capabilities
     async_add_entities(
-        [
-            VolcanoSensorEntity(coordinator, VolcanoSensor.CURRENT_AUTO_OFF_TIME),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.CURRENT_ON_TIME),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.HEAT_TIME),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.RSSI, always_available=True),
-            VolcanoSensorEntity(
-                coordinator, VolcanoSensor.CONNECTED_ADDR, always_available=True
-            ),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.MAINS_VOLTAGE),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.PRJ1),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.PRJ2),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.PRJ3),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.PRJ4),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.PRJ5),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.HIST1),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.HIST2),
-            VolcanoSensorEntity(coordinator, VolcanoSensor.LAST_FAULT),
-        ]
+        VolcanoSensorEntity(coordinator, key, always_available=always_available)
+        for key, always_available in SENSOR_KEYS
+        if key in capabilities
     )
 
 

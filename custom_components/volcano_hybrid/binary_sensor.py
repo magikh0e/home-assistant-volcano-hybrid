@@ -83,30 +83,38 @@ SENSOR_DESCRIPTIONS: dict[str, BinarySensorEntityDescription] = {
 }
 
 
+# (key, always_available, initial_value) in the order the entities were always
+# created.
+BINARY_SENSOR_KEYS: tuple[tuple[VolcanoSensor, bool, bool | None], ...] = (
+    (VolcanoSensor.AT_TEMPERATURE, False, None),
+    (VolcanoSensor.HEATER_ACTIVE, False, None),
+    (VolcanoSensor.PUMP_ACTIVE, False, None),
+    (VolcanoSensor.ACTUATOR_FAULT, False, None),
+    (VolcanoSensor.AUTO_SHUTDOWN, False, None),
+    (VolcanoSensor.SERVICE_MODE, False, None),
+    (VolcanoSensor.PRV1_ERROR, False, None),
+    (VolcanoSensor.PRV2_ERROR, False, None),
+    (VolcanoSensor.CONNECTED, True, False),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: VolcanoHybridConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the Volcano BLE binary sensors."""
+    """Set up the binary sensors the device family supports."""
     coordinator = entry.runtime_data
+    capabilities = coordinator.data.capabilities
     async_add_entities(
-        [
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.AT_TEMPERATURE),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.HEATER_ACTIVE),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.PUMP_ACTIVE),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.ACTUATOR_FAULT),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.AUTO_SHUTDOWN),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.SERVICE_MODE),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.PRV1_ERROR),
-            VolcanoBinarySensorEntity(coordinator, VolcanoSensor.PRV2_ERROR),
-            VolcanoBinarySensorEntity(
-                coordinator,
-                VolcanoSensor.CONNECTED,
-                always_available=True,
-                initial_value=False,
-            ),
-        ]
+        VolcanoBinarySensorEntity(
+            coordinator,
+            key,
+            always_available=always_available,
+            initial_value=initial_value,
+        )
+        for key, always_available, initial_value in BINARY_SENSOR_KEYS
+        if key in capabilities
     )
 
 
