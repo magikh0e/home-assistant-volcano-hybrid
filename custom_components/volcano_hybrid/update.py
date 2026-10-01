@@ -1,8 +1,6 @@
-"""Support for reporting outdated Volcano Hybrid firmware."""
+"""Support for reporting outdated device firmware."""
 
 from __future__ import annotations
-
-from typing import TYPE_CHECKING, cast
 
 from homeassistant.components.update import (
     UpdateDeviceClass,
@@ -22,9 +20,6 @@ from .firmware import (
     parse_firmware_version,
 )
 from .volcano_ble import VolcanoSensor
-
-if TYPE_CHECKING:
-    from .volcano_ble import VolcanoHybridData
 
 PARALLEL_UPDATES = 0
 
@@ -66,13 +61,12 @@ class VolcanoUpdateEntity(VolcanoHybridEntity, UpdateEntity):
     @property
     def _installed(self) -> tuple[int, int] | None:
         """Return the firmware version the device reported, if any."""
-        # Only the Volcano is built so far, so its data is what the coordinator holds.
-        data = cast("VolcanoHybridData", self.coordinator.data)
+        data = self.coordinator.data
         # firmware_version is the string surfaced as the device's sw_version and
         # is the one confirmed to track the vendor's published version numbers;
         # firmware only stands in when it is missing.
         return parse_firmware_version(data.firmware_version) or parse_firmware_version(
-            data.firmware
+            getattr(data, "firmware", None)
         )
 
     @property
@@ -84,5 +78,5 @@ class VolcanoUpdateEntity(VolcanoHybridEntity, UpdateEntity):
     @property
     def latest_version(self) -> str | None:
         """Return the newest firmware known to this release of the integration."""
-        latest = latest_firmware_version(self._installed)
+        latest = latest_firmware_version(self.coordinator.family, self._installed)
         return None if latest is None else format_firmware_version(latest)

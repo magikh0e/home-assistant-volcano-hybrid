@@ -18,6 +18,7 @@ import pytest
 from custom_components.volcano_hybrid.firmware import LATEST_KNOWN_FIRMWARE
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
     from types import ModuleType
 
 SCRIPT = Path(__file__).parent.parent / "scripts" / "check_firmware.py"
@@ -36,26 +37,43 @@ def _load() -> ModuleType:
 
 check_firmware = _load()
 
+_RECORDED = LATEST_KNOWN_FIRMWARE["volcano_hybrid"]
+assert _RECORDED is not None
+LATEST: tuple[int, int] = _RECORDED
 
-def _response(**overrides: Any) -> str:
-    """Build a response body shaped like the vendor endpoint's."""
-    payload = {
+
+def _response(
+    family: str = "volcano_hybrid",
+    version: tuple[int, int] = LATEST,
+    **overrides: Any,
+) -> str:
+    """Build a response body shaped like a family's vendor endpoint."""
+    payload: dict[str, Any] = {
         "valid": 1,
-        "majorApplication": LATEST_KNOWN_FIRMWARE[0],
-        "minorApplication": LATEST_KNOWN_FIRMWARE[1],
+        "majorApplication": version[0],
+        "minorApplication": version[1],
     }
+    if family != "volcano_hybrid":
+        payload |= {"majorBootloader": 1, "minorBootloader": 0}
     payload.update(overrides)
     return json.dumps([payload])
 
 
-def test_reads_the_version_recorded_in_the_integration() -> None:
+def test_reads_the_versions_recorded_in_the_integration() -> None:
     """The constant is read from source without importing Home Assistant."""
-    assert check_firmware.read_recorded_version() == LATEST_KNOWN_FIRMWARE
+    assert check_firmware.read_recorded_versions() == LATEST_KNOWN_FIRMWARE
 
 
-def test_parses_a_healthy_response() -> None:
+def test_every_recorded_family_has_an_endpoint() -> None:
+    """A family added to the constant cannot be silently left unchecked."""
+    assert set(check_firmware.ENDPOINTS) == set(LATEST_KNOWN_FIRMWARE)
+
+
+@pytest.mark.parametrize("family", ["volcano_hybrid", "venty", "veazy"])
+def test_parses_a_healthy_response(family: str) -> None:
     """A well-formed response yields the published version."""
-    assert check_firmware._parse_response(_response()) == LATEST_KNOWN_FIRMWARE  # noqa: SLF001
+    raw = _response(family, (1, 9))
+    assert check_firmware._parse_response(raw, family) == (1, 9)  # noqa: SLF001
 
 
 @pytest.mark.parametrize(
@@ -85,14 +103,85 @@ def test_reports_an_invalid_response() -> None:
 
 def test_outdated_report_names_both_versions() -> None:
     """The issue body says what shipped, what is recorded, and what to do."""
-    published = (LATEST_KNOWN_FIRMWARE[0], LATEST_KNOWN_FIRMWARE[1] + 1)
-    failure = check_firmware.build_outdated_report(LATEST_KNOWN_FIRMWARE, published)
+    published = (LATEST[0], LATEST[1] + 1)
+    failure = check_firmware.build_outdated_report("volcano_hybrid", LATEST, published)
 
     assert failure.status == "outdated"
+    assert "Volcano Hybrid" in failure.title
     assert check_firmware._format(published) in failure.title  # noqa: SLF001
     assert check_firmware._format(published) in failure.body  # noqa: SLF001
-    assert check_firmware._format(LATEST_KNOWN_FIRMWARE) in failure.body  # noqa: SLF001
+    assert check_firmware._format(LATEST) in failure.body  # noqa: SLF001
     assert "LATEST_KNOWN_FIRMWARE" in failure.body
+
+
+def test_reports_unknown_recorded_version_as_outdated() -> None:
+    """A family with nothing recorded still raises the published version."""
+    failure = check_firmware.build_outdated_report("venty", None, (1, 9))
+
+    assert failure.status == "outdated"
+    assert "Venty" in failure.title
+    assert "V01.09" in failure.title
+    assert "records no version for this family" in failure.body
+    assert "once verified" in failure.body
+
+
+def _fake_fetch(
+    responses: Mapping[str, tuple[int, int] | Exception],
+) -> Callable[[str], tuple[int, int]]:
+    """Stand in for the network: answer per family, never touch a socket."""
+
+    def fetch(family: str) -> tuple[int, int]:
+        result = responses[family]
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    return fetch
+
+
+def test_main_is_quiet_when_every_family_matches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Recorded versions equal to the published ones report ok."""
+    output = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    versions = {"volcano_hybrid": LATEST, "venty": (1, 9), "veazy": (1, 9)}
+    monkeypatch.setattr(check_firmware, "read_recorded_versions", lambda: versions)
+    monkeypatch.setattr(
+        check_firmware, "fetch_published_version", _fake_fetch(versions)
+    )
+
+    assert check_firmware.main() == 0
+    assert "status=ok\n" in output.read_text(encoding="utf-8")
+
+
+def test_main_labels_the_first_failure_with_its_family(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The status carries the family so issues dedupe per family and kind."""
+    output = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    monkeypatch.setattr(
+        check_firmware,
+        "read_recorded_versions",
+        lambda: {"volcano_hybrid": LATEST, "venty": None, "veazy": None},
+    )
+    monkeypatch.setattr(
+        check_firmware,
+        "fetch_published_version",
+        _fake_fetch(
+            {
+                "volcano_hybrid": LATEST,
+                "venty": (1, 9),
+                "veazy": check_firmware._endpoint_error("down", "body"),  # noqa: SLF001
+            }
+        ),
+    )
+
+    assert check_firmware.main() == 1
+    written = output.read_text(encoding="utf-8")
+    assert "status=venty-outdated\n" in written
+    assert "veazy" not in written.split("body<<")[0]
 
 
 def test_writes_workflow_outputs(

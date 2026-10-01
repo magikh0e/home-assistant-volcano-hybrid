@@ -15,15 +15,27 @@ integration itself free of any network dependency.
 from __future__ import annotations
 
 import re
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-# The newest firmware Storz & Bickel published for the Volcano Hybrid as of the
-# last release of this integration, as (major, minor).
+if TYPE_CHECKING:
+    from .volcano_ble import DeviceFamily
+
+# The newest firmware Storz & Bickel published per device family as of the last
+# release of this integration, as (major, minor). Keys are plain strings (the
+# DeviceFamily values) so scripts/check_firmware.py can read the literal
+# without importing Home Assistant.
 #
-# Do not bump this by hand without flashing the firmware and confirming the
+# Do not bump an entry by hand without flashing the firmware and confirming the
 # integration still works against it: the whole point of the constant is that
 # it only ever names a version somebody actually verified.
-LATEST_KNOWN_FIRMWARE: Final[tuple[int, int]] = (1, 3)
+LATEST_KNOWN_FIRMWARE: Final[dict[str, tuple[int, int] | None]] = {
+    "volcano_hybrid": (1, 3),
+    # Nobody has verified a Venty or Veazy firmware against this integration
+    # yet; None means the update entity reports no "latest" rather than
+    # inventing one. The scheduled check still watches the vendor endpoint.
+    "venty": None,
+    "veazy": None,
+}
 
 # Where a user installs it today. Flashing is a BLE bootloader protocol, not
 # something only a browser can drive, so this could be implemented here; see
@@ -58,6 +70,7 @@ def format_firmware_version(version: tuple[int, int]) -> str:
 
 
 def latest_firmware_version(
+    family: DeviceFamily,
     installed: tuple[int, int] | None,
 ) -> tuple[int, int] | None:
     """
@@ -67,7 +80,14 @@ def latest_firmware_version(
     about, if it was flashed after the last release. Reporting the recorded
     constant regardless would tell that user to "update" to older firmware, so
     whatever is already installed wins when it is ahead.
+
+    Families without a recorded version report None: nothing is claimed until
+    somebody has verified a firmware, and echoing the installed version would
+    claim exactly that.
     """
     if installed is None:
         return None
-    return max(installed, LATEST_KNOWN_FIRMWARE)
+    known = LATEST_KNOWN_FIRMWARE.get(family.value)
+    if known is None:
+        return None
+    return max(installed, known)

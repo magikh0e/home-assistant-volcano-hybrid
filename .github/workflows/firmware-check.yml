@@ -1,10 +1,13 @@
 name: Firmware check
 
-# Watches the vendor endpoint the official web app uses to decide whether newer
-# Volcano Hybrid firmware exists, so the integration does not have to call it at
-# runtime. Opens an issue when the published version moves past the one recorded
-# in custom_components/volcano_hybrid/firmware.py, or when the endpoint starts
-# failing or changes shape.
+# Watches the vendor endpoints the official web app uses to decide whether newer
+# Volcano Hybrid, Venty or Veazy firmware exists, so the integration does not
+# have to call them at runtime. Opens an issue when a published version moves
+# past the one recorded for its family in
+# custom_components/volcano_hybrid/firmware.py (or none is recorded yet), or
+# when an endpoint starts failing or changes shape. The status label carries
+# the family (for example "venty-outdated"), so issues dedupe per family and
+# per kind of problem.
 #
 # GitHub disables scheduled workflows on repositories with no activity for 60
 # days; if this stops running on a quiet repo, re-enable it from the Actions tab.
