@@ -2,53 +2,77 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from .const import (
+    FAMILY_MODEL_NAME,
     VOLCANO_HYBRID_DISPLAY_OFF_TEMP,
     VOLCANO_HYBRID_MAX_TEMP,
     VOLCANO_HYBRID_MIN_TEMP,
+    DeviceFamily,
+    VolcanoSensor,
 )
+from .data import DeviceData, TrackedValue, VolcanoHybridDataStatusProvider
 from .fault_log import FAULT_NONE, decode_fault_log
 
-
-class VolcanoHybridDataStatusProvider:
-    """Interface to retrieve Device data from the Data."""
-
-    @property
-    def rssi(self) -> int | None:
-        """Get the device rssi."""
-        raise NotImplementedError
-
-    @property
-    def is_connected(self) -> bool:
-        """Determine whether the device is connected."""
-        raise NotImplementedError
-
-    @property
-    def connected_addr(self) -> str | None:
-        """Get the connected mac address."""
-        raise NotImplementedError
+__all__ = [
+    "VolcanoHybridData",
+    "VolcanoHybridDataStatusProvider",
+]
 
 
-class VolcanoHybridData:
+class VolcanoHybridData(DeviceData):
     """Data object to hold Volcano Hybrid data."""
+
+    family = DeviceFamily.VOLCANO_HYBRID
+    MIN_TEMP = VOLCANO_HYBRID_MIN_TEMP
+    MAX_TEMP = VOLCANO_HYBRID_MAX_TEMP
+    MIN_DISPLAY_TEMP = 40
+    capabilities = frozenset(
+        {
+            VolcanoSensor.VOLCANO,
+            VolcanoSensor.FIRMWARE,
+            VolcanoSensor.CURRENT_AUTO_OFF_TIME,
+            VolcanoSensor.CURRENT_ON_TIME,
+            VolcanoSensor.HEAT_TIME,
+            VolcanoSensor.SHUT_OFF,
+            VolcanoSensor.LED_BRIGHTNESS,
+            VolcanoSensor.AUTO_SHUTDOWN,
+            VolcanoSensor.AT_TEMPERATURE,
+            VolcanoSensor.HEATER_ACTIVE,
+            VolcanoSensor.PUMP_ACTIVE,
+            VolcanoSensor.ACTUATOR_FAULT,
+            VolcanoSensor.PRV1_ERROR,
+            VolcanoSensor.SHOWING_CELSIUS,
+            VolcanoSensor.DISPLAY_ON_COOLING,
+            VolcanoSensor.SERVICE_MODE,
+            VolcanoSensor.PRV2_ERROR,
+            VolcanoSensor.VIBRATION,
+            VolcanoSensor.RECONNECT,
+            VolcanoSensor.DELAYED_RECONNECT,
+            VolcanoSensor.AUTO_CONNECT,
+            VolcanoSensor.CONNECTED,
+            VolcanoSensor.RSSI,
+            VolcanoSensor.CONNECTED_ADDR,
+            VolcanoSensor.MAINS_VOLTAGE,
+            VolcanoSensor.PRJ1,
+            VolcanoSensor.PRJ2,
+            VolcanoSensor.PRJ3,
+            VolcanoSensor.PRJ4,
+            VolcanoSensor.PRJ5,
+            VolcanoSensor.HIST1,
+            VolcanoSensor.HIST2,
+            VolcanoSensor.LAST_FAULT,
+        }
+    )
 
     def __init__(self, device: VolcanoHybridDataStatusProvider) -> None:
         """Initialize the Volcano Hybrid data object."""
-        self.device = device
-        self._current_temp: int | None = None
-        self._set_temp: int | None = None
+        super().__init__(device)
 
-        self.serial_number: str | None = None
         # What the device calls itself ("HYBRID") and the mains it was built
         # for ("230VAC"). Both are fixed identity strings, and both stay None on
         # a device whose BLE module does not serve them.
         self.model: str | None = None
         self.mains_voltage: str | None = None
-        self.firmware_version: str | None = None
-        self.firmware_ble_version: str | None = None
-        self.bootloader_version: str | None = None
         self.firmware: str | None = None
         self._current_auto_off_time: float | None = None
         self.heat_hours_changed: int | None = None
@@ -71,12 +95,9 @@ class VolcanoHybridData:
         self.hist2: str | None = None
 
         # Prv1 attributes
-        self._heater: bool | None = None
-        self._fan: bool | None = None
+        self._fan: TrackedValue[bool] = TrackedValue()
+        self._tracked.append(self._fan)
         self.auto_shutdown: bool | None = None
-        # The device's own "setpoint reached" signal, so nothing has to compare
-        # the current temperature against the target to know it is ready.
-        self.at_temperature: bool | None = None
         self.actuator_fault: bool | None = None
         self.prv1_error: bool | None = None
 
@@ -89,47 +110,27 @@ class VolcanoHybridData:
         # Prv3 attributes
         self.vibration: bool | None = None
 
-        # Attributes that will be set frequently and which we want to track being set
-        self._set_temp_write: int | None = None
-        self._heater_write: bool | None = None
-        self._fan_write: bool | None = None
-
     @property
-    def is_assumed(self) -> bool:
-        """Checks if the value and value_write's are the same."""
-        return (
-            (self.set_temp_write is not None and self.set_temp != self.set_temp_write)
-            or (self.heater_write is not None and self.heater != self.heater_write)
-            or (self.fan_write is not None and self.fan != self.fan_write)
-        )
+    def model_name(self) -> str:
+        """
+        Render the model the device reports as the name people know it by.
+
+        The device answers a bare product class — `HYBRID` on the unit this was
+        read from, and the firmware seeds that from a model class that also has a
+        Medic variant. Shown verbatim it would replace the "Volcano Hybrid" the
+        device registry has always displayed with a shoutier version of the same
+        fact, so the class is titled and prefixed instead: `HYBRID` renders exactly
+        what was there before, while a different class still reads correctly.
+        Anything that is not a plain word is left alone rather than dressed up.
+        """
+        if not self.model or not self.model.isalpha():
+            return FAMILY_MODEL_NAME[self.family]
+        return f"Volcano {self.model.capitalize()}"
 
     @property
     def is_on(self) -> bool:
         """Check if the device is on."""
         return bool(self.fan or self.heater)
-
-    @property
-    def is_heating(self) -> bool | None:
-        """
-        Whether the heater is working towards a setpoint it has not reached.
-
-        The device has no signal for its heating element: PRJSTAT1 does not
-        change at all while it holds temperature, and its "setpoint reached"
-        bit is a latch that only clears when the target is raised 3 °C or more
-        above the *previous target* — never against the current reading, and
-        never when the target is lowered — so it keeps claiming to be at
-        temperature through small adjustments and all the way down a coast.
-        Comparing the two temperatures the device does report is finer grained
-        and works in both directions.
-        """
-        heater = self.heater_state
-        if heater is None:
-            return None
-        if not heater:
-            return False
-        if self.current_temp is None or self.set_temp_state is None:
-            return None
-        return self.current_temp < self.set_temp_state
 
     @property
     def is_cooling(self) -> bool:
@@ -176,134 +177,33 @@ class VolcanoHybridData:
         faults = self.hist1_faults
         return faults[0]["fault"] if faults else FAULT_NONE
 
-    def clear_open_writes(self) -> None:
-        """Remove all open writes."""
-        self.heater_write = None
-        self.fan_write = None
-        self.set_temp_write = None
-
     @property
     def fan_write(self) -> bool | None:
         """Return the pending fan write."""
-        return self._fan_write
+        return self._fan.pending
 
     @fan_write.setter
     def fan_write(self, value: bool | None) -> None:
-        """Set the pending fan write, dropping it when already confirmed."""
-        self._fan_write = None if value == self._fan else value
-
-    @property
-    def heater_write(self) -> bool | None:
-        """Return the pending heater write."""
-        return self._heater_write
-
-    @heater_write.setter
-    def heater_write(self, value: bool | None) -> None:
-        """Set the pending heater write, dropping it when already confirmed."""
-        self._heater_write = None if value == self._heater else value
-
-    @property
-    def set_temp_write(self) -> int | None:
-        """Return the pending set_temp write."""
-        return self._set_temp_write
-
-    @set_temp_write.setter
-    def set_temp_write(self, value: int | None) -> None:
-        """Set the pending set_temp write, dropping it when already confirmed."""
-        self._set_temp_write = None if value == self._set_temp else value
+        self._fan.pending = value
 
     @property
     def fan_state(self) -> bool | None:
-        """
-        Return the current fan state.
-
-        Updated before actually confirmed to be written.
-        """
-        return self.fan_write if self.fan_write is not None else self.fan
+        """Return the fan as it should be shown."""
+        return self._fan.state
 
     @property
     def fan(self) -> bool | None:
-        """Return the current fan state."""
-        return self._fan
+        """Return the confirmed fan state."""
+        return self._fan.value
 
     @fan.setter
     def fan(self, value: bool) -> None:
-        """Set the current fan state (and clears the write if they match)."""
-        self._fan = value
-        if self.fan_write is not None and self.fan == self.fan_write:
-            self.fan_write = None
+        self._fan.value = value
 
     @property
     def fan_needs_write(self) -> bool:
         """Check if the fan needs to be written."""
-        return self.fan_write is not None and self.fan != self.fan_write
-
-    @property
-    def heater_state(self) -> bool | None:
-        """
-        Return the current heater state.
-
-        Updated before actually confirmed to be written.
-        """
-        return self.heater_write if self.heater_write is not None else self.heater
-
-    @property
-    def heater(self) -> bool | None:
-        """Returns the current heater state."""
-        return self._heater
-
-    @heater.setter
-    def heater(self, value: bool) -> None:
-        """Set the current heater state (and clears the write if they match)."""
-        self._heater = value
-        if self.heater_write is not None and self.heater == self.heater_write:
-            self.heater_write = None
-
-    @property
-    def heater_needs_write(self) -> bool:
-        """Check if the heater needs to be written."""
-        return self.heater_write is not None and self.heater != self.heater_write
-
-    @property
-    def set_temp_state(self) -> int | None:
-        """
-        Return the current set_temp state.
-
-        updated before actually confirmed to be written.
-        """
-        return self.set_temp_write if self.set_temp_write is not None else self.set_temp
-
-    @property
-    def set_temp(self) -> int | None:
-        """Return the current set_temp state."""
-        return self._set_temp
-
-    @set_temp.setter
-    def set_temp(self, value: int) -> None:
-        """Set the current set_temp state (and clears the write if they match)."""
-        self._set_temp = value
-        if self.set_temp_write is not None and self.set_temp == self.set_temp_write:
-            self.set_temp_write = None
-
-    @property
-    def set_temp_needs_write(self) -> bool:
-        """Check if the set_temp needs to be written."""
-        return self.set_temp_write is not None and self.set_temp != self.set_temp_write
-
-    @property
-    def connected(self) -> bool:
-        """Get the current auto off time in minutes."""
-        return self.device.is_connected
-
-    @property
-    def rssi(self) -> int | None:
-        """The current rssi."""
-        return self.device.rssi
-
-    @property
-    def connected_addr(self) -> str | None:
-        """The current rssi."""
-        return self.device.connected_addr
+        return self._fan.needs_write
 
     @property
     def heat_time(self) -> int | None:
@@ -329,21 +229,3 @@ class VolcanoHybridData:
         if self.shut_off is None or self.current_auto_off_time is None:
             return None
         return self.shut_off - self.current_auto_off_time
-
-    @property
-    def current_temp(self) -> int | None:
-        """Get the current temp."""
-        if self._current_temp is not None and self._current_temp > 0:
-            return self._current_temp
-        return None
-
-    @current_temp.setter
-    def current_temp(self, value: int) -> None:
-        if VOLCANO_HYBRID_MIN_TEMP <= value <= VOLCANO_HYBRID_MAX_TEMP:
-            self._current_temp = value
-        else:
-            self._current_temp = None
-
-    def get(self, key: str) -> Any | None:
-        """Get the value of the specified key."""
-        return getattr(self, key)

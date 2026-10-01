@@ -14,6 +14,32 @@ VOLCANO_HYBRID_MAX_TEMP = 230
 VOLCANO_HYBRID_DISPLAY_OFF_TEMP = 40
 
 
+class DeviceFamily(StrEnum):
+    """The Storz & Bickel device families this integration speaks to."""
+
+    VOLCANO_HYBRID = "volcano_hybrid"
+    # Crafty and Crafty+ share a protocol; the model is told apart by the
+    # firmware major version after connecting (CRAFTY_BLE_SPEC.md §6).
+    CRAFTY = "crafty"
+    VENTY = "venty"
+    VEAZY = "veazy"
+
+
+# How each family is named in the device registry until it says otherwise.
+FAMILY_MODEL_NAME: dict[DeviceFamily, str] = {
+    DeviceFamily.VOLCANO_HYBRID: "Volcano Hybrid",
+    DeviceFamily.CRAFTY: "Crafty",
+    DeviceFamily.VENTY: "Venty",
+    DeviceFamily.VEAZY: "Veazy",
+}
+
+# Portable devices: the app clamps the target to 40-210 °C for both families
+# (CRAFTY_BLE_SPEC.md §3, VENTY_BLE_SPEC.md §5).
+PORTABLE_MIN_TEMP = 0
+PORTABLE_MAX_TEMP = 210
+PORTABLE_MIN_DISPLAY_TEMP = 40
+
+
 class VolcanoSensor(StrEnum):
     """Volcano sensor types."""
 
