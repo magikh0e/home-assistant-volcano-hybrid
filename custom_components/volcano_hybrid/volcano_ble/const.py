@@ -1,6 +1,10 @@
 """Constants for the VolcanoBLE."""
 
 from enum import StrEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from habluetooth import BluetoothServiceInfoBleak
 
 VOLCANO_HYBRID_MIN_TEMP = 0
 VOLCANO_HYBRID_MAX_TEMP = 230
@@ -76,3 +80,49 @@ class VolcanoSensor(StrEnum):
     HIST1 = "hist1"
     HIST2 = "hist2"
     LAST_FAULT = "last_fault"
+
+
+STORZ_BICKEL_MANUFACTURER_ID = 1736
+
+# The Venty and Veazy advertise this one service (VENTY_BLE_SPEC.md §1).
+QVAP_SERVICE_UUID = "00000000-5354-4f52-5a26-4249434b454c"
+# The Crafty advertises its three services (CRAFTY_BLE_SPEC.md §1).
+CRAFTY_SERVICE_UUIDS = (
+    "00000001-4c45-4b43-4942-265a524f5453",
+    "00000002-4c45-4b43-4942-265a524f5453",
+    "00000003-4c45-4b43-4942-265a524f5453",
+)
+CRAFTY_NAME_PREFIXES = ("STORZ&BICKEL", "Storz&Bickel")
+
+
+def detect_family(service_info: BluetoothServiceInfoBleak) -> DeviceFamily | None:
+    """
+    Decide which family an advertisement belongs to, or None.
+
+    The order matters: the Volcano check is the one the integration has always
+    made (name plus manufacturer id); the Venty/Veazy names are exact prefixes
+    the vendor app matches on; a Qvap service with an unknown name is refused
+    rather than guessed; the Crafty is last because its name is the least
+    specific.
+    """
+    name = service_info.name or ""
+    uuids = set(service_info.service_uuids)
+    if (
+        service_info.manufacturer_id == STORZ_BICKEL_MANUFACTURER_ID
+        and "VOLCANO H" in name
+    ):
+        return DeviceFamily.VOLCANO_HYBRID
+    if "S&B VY" in name:
+        return DeviceFamily.VENTY
+    if "S&B VZ" in name:
+        return DeviceFamily.VEAZY
+    if QVAP_SERVICE_UUID in uuids:
+        return None
+    if name.startswith(CRAFTY_NAME_PREFIXES) or uuids & set(CRAFTY_SERVICE_UUIDS):
+        return DeviceFamily.CRAFTY
+    return None
+
+
+def is_supported(service_info: BluetoothServiceInfoBleak) -> bool:
+    """Whether the advertisement belongs to a device this integration supports."""
+    return detect_family(service_info) is not None

@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 VOLCANO_ADDRESS = "AA:BB:CC:DD:EE:FF"
 VOLCANO_NAME = "S&B VOLCANO H 123456"
+CRAFTY_NAME = "STORZ&BICKEL"
+VENTY_NAME = "S&B VY123456"
+VEAZY_NAME = "S&B VZ654321"
 STORZ_BICKEL_MANUFACTURER_ID = 1736
 
 
@@ -30,6 +33,7 @@ def make_service_info(
     address: str = VOLCANO_ADDRESS,
     name: str = VOLCANO_NAME,
     manufacturer_id: int = STORZ_BICKEL_MANUFACTURER_ID,
+    service_uuids: list[str] | None = None,
 ) -> BluetoothServiceInfoBleak:
     """Build the discovery info for a BLE device, a Volcano by default."""
     device = make_ble_device(address=address, name=name)
@@ -37,7 +41,7 @@ def make_service_info(
         local_name=name,
         manufacturer_data={manufacturer_id: b""},
         service_data={},
-        service_uuids=[],
+        service_uuids=service_uuids or [],
         tx_power=None,
         rssi=-60,
         platform_data=(),
@@ -48,7 +52,7 @@ def make_service_info(
         rssi=-60,
         manufacturer_data={manufacturer_id: b""},
         service_data={},
-        service_uuids=[],
+        service_uuids=service_uuids or [],
         source="local",
         device=device,
         advertisement=advertisement,

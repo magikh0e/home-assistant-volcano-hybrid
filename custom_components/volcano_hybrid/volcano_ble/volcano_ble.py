@@ -15,14 +15,14 @@ from bleak_retry_connector import (
 )
 from habluetooth import BluetoothServiceInfoBleak
 
+# The manufacturer id is re-exported: tests import it from this module.
+from .const import STORZ_BICKEL_MANUFACTURER_ID, is_supported  # noqa: F401
 from .volcano_hybrid_data import VolcanoHybridData, VolcanoHybridDataStatusProvider
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
 _LOGGER = logging.getLogger(__name__)
-STORZ_BICKEL_MANUFACTURER_ID = 1736
-
 # BLE service and characteristic placeholders
 SERVICE_UUID = "10110000-5354-4f52-5a26-4249434b454c"
 CHARACTERISTIC_CURRENT_TEMP = "10110001-5354-4f52-5a26-4249434b454c"  # 4
@@ -126,11 +126,7 @@ class VolcanoBLE(VolcanoHybridDataStatusProvider):
     @staticmethod
     def is_supported(service_info: BluetoothServiceInfoBleak) -> bool:
         """Check if the device is supported."""
-        return (
-            service_info.manufacturer_id == STORZ_BICKEL_MANUFACTURER_ID
-            and service_info.name is not None
-            and "VOLCANO H" in service_info.name
-        )
+        return is_supported(service_info)
 
     @property
     def rssi(self) -> int | None:
