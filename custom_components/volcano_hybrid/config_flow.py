@@ -31,11 +31,12 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_AUTO_CONNECT_DELAY,
     CONF_DELAYED_RECONNECT_DELAY,
+    CONF_MODEL,
     DEFAULT_AUTO_CONNECT_DELAY,
     DEFAULT_DELAYED_RECONNECT_DELAY,
     DOMAIN,
 )
-from .volcano_ble import VolcanoBLE
+from .volcano_ble import DeviceFamily, detect_family
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,12 +44,13 @@ _LOGGER = logging.getLogger(__name__)
 class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Volcano Hybrid."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._discovered_device: BluetoothServiceInfoBleak | None = None
-        self._discovered_devices: dict[str, str] = {}
+        self._discovered_family: DeviceFamily | None = None
+        self._discovered_devices: dict[str, tuple[str, DeviceFamily]] = {}
 
     @staticmethod
     @callback
@@ -69,8 +71,13 @@ class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
                 address in current_addresses and address != allowed_address
             ) or address in self._discovered_devices:
                 continue
-            if VolcanoBLE.is_supported(discovery_info):
-                self._discovered_devices[address] = discovery_info.name
+            if (family := detect_family(discovery_info)) is not None:
+                self._discovered_devices[address] = (discovery_info.name, family)
+
+    def _entry_data(self, address: str) -> dict[str, str]:
+        """Build the data a new or reconfigured entry stores for a device."""
+        _, family = self._discovered_devices[address]
+        return {CONF_ADDRESS: address, CONF_MODEL: family.value}
 
     def _device_selection_schema(self) -> vol.Schema:
         """Build a schema with a dropdown of the discovered devices."""
@@ -80,7 +87,7 @@ class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
                     SelectSelectorConfig(
                         options=[
                             SelectOptionDict(value=address, label=f"{name} ({address})")
-                            for address, name in self._discovered_devices.items()
+                            for address, (name, _) in self._discovered_devices.items()
                         ],
                         mode=SelectSelectorMode.DROPDOWN,
                     )
@@ -97,8 +104,8 @@ class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
-                title=self._discovered_devices[address],
-                data={CONF_ADDRESS: address},
+                title=self._discovered_devices[address][0],
+                data=self._entry_data(address),
             )
 
         self._async_discover_devices()
@@ -123,8 +130,8 @@ class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_update_reload_and_abort(
                 entry,
                 unique_id=address,
-                title=self._discovered_devices[address],
-                data={CONF_ADDRESS: address},
+                title=self._discovered_devices[address][0],
+                data=self._entry_data(address),
             )
 
         self._async_discover_devices(allowed_address=entry.data[CONF_ADDRESS])
@@ -141,24 +148,29 @@ class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle discovery initiated by Bluetooth."""
         _LOGGER.debug("Discovered device: %s", discovery_info)
-        if not VolcanoBLE.is_supported(discovery_info):
+        family = detect_family(discovery_info)
+        if family is None:
             return self.async_abort(reason="not_supported")
 
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         self._discovered_device = discovery_info
+        self._discovered_family = family
         return await self.async_step_bluetooth_confirm()
 
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Confirm the discovered device."""
-        if self._discovered_device is None:
+        if self._discovered_device is None or self._discovered_family is None:
             return self.async_abort(reason="no_devices_found")
         if user_input is not None:
             return self.async_create_entry(
                 title=self._discovered_device.name,
-                data={CONF_ADDRESS: self._discovered_device.address},
+                data={
+                    CONF_ADDRESS: self._discovered_device.address,
+                    CONF_MODEL: self._discovered_family.value,
+                },
             )
 
         self._set_confirm_only()

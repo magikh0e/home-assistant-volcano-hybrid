@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING, Any
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from habluetooth.models import BluetoothServiceInfoBleak
+from homeassistant.const import CONF_ADDRESS
 from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.volcano_hybrid.const import DOMAIN
+from custom_components.volcano_hybrid.const import CONF_MODEL, DOMAIN
+from custom_components.volcano_hybrid.volcano_ble import DATA_CLASSES, DeviceFamily
 from custom_components.volcano_hybrid.volcano_ble.volcano_hybrid_data import (
-    VolcanoHybridData,
     VolcanoHybridDataStatusProvider,
 )
 
@@ -21,12 +23,20 @@ if TYPE_CHECKING:
 
     from homeassistant.core import HomeAssistant
 
+    from custom_components.volcano_hybrid.volcano_ble import VolcanoHybridData
+
 VOLCANO_ADDRESS = "AA:BB:CC:DD:EE:FF"
 VOLCANO_NAME = "S&B VOLCANO H 123456"
 CRAFTY_NAME = "STORZ&BICKEL"
 VENTY_NAME = "S&B VY123456"
 VEAZY_NAME = "S&B VZ654321"
 STORZ_BICKEL_MANUFACTURER_ID = 1736
+FAMILY_NAMES: dict[DeviceFamily, str] = {
+    DeviceFamily.VOLCANO_HYBRID: VOLCANO_NAME,
+    DeviceFamily.CRAFTY: CRAFTY_NAME,
+    DeviceFamily.VENTY: VENTY_NAME,
+    DeviceFamily.VEAZY: VEAZY_NAME,
+}
 
 
 def make_service_info(
@@ -79,12 +89,27 @@ def get_entity_id(hass: HomeAssistant, platform: str, key: str) -> str:
     return entity_id
 
 
-class FakeVolcanoBLE(VolcanoHybridDataStatusProvider):
-    """In-memory stand-in for the VolcanoBLE device used by the coordinator."""
+def make_config_entry(
+    family: DeviceFamily = DeviceFamily.VOLCANO_HYBRID,
+    address: str = VOLCANO_ADDRESS,
+) -> MockConfigEntry:
+    """Build a configured entry for a device of the given family."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=address,
+        data={CONF_ADDRESS: address, CONF_MODEL: family.value},
+        title=FAMILY_NAMES[family],
+        version=2,
+    )
 
-    def __init__(self) -> None:
+
+class FakeDevice(VolcanoHybridDataStatusProvider):
+    """In-memory stand-in for a device, used by the coordinator tests."""
+
+    def __init__(self, family: DeviceFamily = DeviceFamily.VOLCANO_HYBRID) -> None:
         """Initialize the fake device."""
-        self.data = VolcanoHybridData(self)
+        self.family = family
+        self.data: Any = DATA_CLASSES[family](self)
         self.data_updated: Callable[[], None] = lambda: None
         self.device_updated: Callable[[], None] = lambda: None
         self.device_rssi: int | None = -60
@@ -97,10 +122,12 @@ class FakeVolcanoBLE(VolcanoHybridDataStatusProvider):
 
     def attach(
         self,
+        family: DeviceFamily,
         data_updated: Callable[[], None],
         device_updated: Callable[[], None],
-    ) -> FakeVolcanoBLE:
-        """Attach the coordinator callbacks, mimicking the constructor."""
+    ) -> FakeDevice:
+        """Stand in for create_device()."""
+        assert family is self.family
         self.data_updated = data_updated
         self.device_updated = device_updated
         return self
@@ -170,3 +197,6 @@ class FakeVolcanoBLE(VolcanoHybridDataStatusProvider):
     async def async_set_led_brightness(self, brightness: int) -> bool:
         """Set the LED brightness."""
         return self._command("led_brightness", brightness)
+
+
+FakeVolcanoBLE = FakeDevice

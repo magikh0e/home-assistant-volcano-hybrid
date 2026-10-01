@@ -8,17 +8,16 @@ from unittest.mock import AsyncMock, PropertyMock, patch
 import pytest
 from habluetooth import get_manager
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_ADDRESS
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.volcano_hybrid.const import DOMAIN
+from custom_components.volcano_hybrid.volcano_ble import DeviceFamily
 
-from . import VOLCANO_ADDRESS, VOLCANO_NAME, FakeVolcanoBLE
+from . import FakeDevice, make_config_entry
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
     from homeassistant.core import HomeAssistant
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 
 @pytest.fixture(autouse=True)
@@ -51,11 +50,17 @@ def mock_setup_entry() -> Generator[AsyncMock]:
 
 
 @pytest.fixture
-def mock_volcano() -> Generator[FakeVolcanoBLE]:
-    """Replace the VolcanoBLE device with an in-memory fake."""
-    fake = FakeVolcanoBLE()
+def device_family(request: pytest.FixtureRequest) -> DeviceFamily:
+    """Pick the family the fake speaks; parametrize indirectly for another."""
+    return getattr(request, "param", DeviceFamily.VOLCANO_HYBRID)
+
+
+@pytest.fixture
+def mock_volcano(device_family: DeviceFamily) -> Generator[FakeDevice]:
+    """Replace the protocol layer with an in-memory fake."""
+    fake = FakeDevice(device_family)
     with patch(
-        "custom_components.volcano_hybrid.coordinator.VolcanoBLE",
+        "custom_components.volcano_hybrid.coordinator.create_device",
         side_effect=fake.attach,
     ):
         yield fake
@@ -75,16 +80,12 @@ def entity_registry_enabled_by_default() -> Generator[None]:
 @pytest.fixture
 async def init_integration(
     hass: HomeAssistant,
-    mock_volcano: FakeVolcanoBLE,
+    mock_volcano: FakeDevice,
     enable_bluetooth: None,
+    device_family: DeviceFamily,
 ) -> AsyncGenerator[MockConfigEntry]:
-    """Set up the integration with a mocked Volcano device."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        unique_id=VOLCANO_ADDRESS,
-        data={CONF_ADDRESS: VOLCANO_ADDRESS},
-        title=VOLCANO_NAME,
-    )
+    """Set up the integration with a mocked device."""
+    entry = make_config_entry(device_family)
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()

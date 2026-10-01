@@ -8,7 +8,7 @@
           "address": "Device"
         },
         "data_description": {
-          "address": "The Volcano Hybrid to set up"
+          "address": "The device to set up"
         }
       },
       "reconfigure": {
@@ -17,7 +17,7 @@
           "address": "Device"
         },
         "data_description": {
-          "address": "The Volcano Hybrid to use"
+          "address": "The device to use"
         }
       },
       "bluetooth_confirm": {
@@ -173,10 +173,13 @@
   },
   "exceptions": {
     "not_connected": {
-      "message": "Could not send the command, the Volcano Hybrid is not connected"
+      "message": "Could not send the command, the device is not connected"
     },
     "command_failed": {
-      "message": "Sending the command to the Volcano Hybrid failed"
+      "message": "Sending the command to the device failed"
+    },
+    "not_supported": {
+      "message": "The device cannot carry out this command with its family, firmware version or current mode"
     }
   }
 }

@@ -97,7 +97,7 @@ class VolcanoHybridClimate(VolcanoHybridEntity, ClimateEntity):
                 HVACAction.IDLE if data.is_cooling else HVACAction.OFF
             )
 
-        fan_state = data.fan_state
+        fan_state = data.get("fan_state")
         if fan_state is None:
             self._attr_fan_mode = None
         else:

@@ -12,7 +12,7 @@ from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.volcano_hybrid import async_remove_config_entry_device
-from custom_components.volcano_hybrid.const import DOMAIN
+from custom_components.volcano_hybrid.const import CONF_MODEL, DOMAIN
 
 from . import (
     VOLCANO_ADDRESS,
@@ -20,6 +20,7 @@ from . import (
     FakeVolcanoBLE,
     get_entity_id,
     make_ble_device,
+    make_config_entry,
     make_service_info,
 )
 
@@ -51,12 +52,7 @@ async def test_setup_does_not_block_on_initial_connect(
 
     mock_volcano.async_manual_update = blocking_update  # type: ignore[method-assign]
 
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        unique_id=VOLCANO_ADDRESS,
-        data={CONF_ADDRESS: VOLCANO_ADDRESS},
-        title=VOLCANO_NAME,
-    )
+    entry = make_config_entry()
     entry.add_to_hass(hass)
 
     with (
@@ -187,3 +183,23 @@ async def test_remove_config_entry_device(
         identifiers={(DOMAIN, OTHER_ADDRESS)},
     )
     assert await async_remove_config_entry_device(hass, entry, stale)
+
+
+async def test_migrate_v1_entry_marks_it_a_volcano(
+    hass: HomeAssistant, mock_volcano: FakeVolcanoBLE, enable_bluetooth: None
+) -> None:
+    """Entries created before families existed are Volcano Hybrids."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=VOLCANO_ADDRESS,
+        data={CONF_ADDRESS: VOLCANO_ADDRESS},
+        title=VOLCANO_NAME,
+        version=1,
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.version == 2
+    assert entry.data == {CONF_ADDRESS: VOLCANO_ADDRESS, CONF_MODEL: "volcano_hybrid"}
+    assert entry.state is ConfigEntryState.LOADED

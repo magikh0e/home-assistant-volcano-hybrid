@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
-from .const import DOMAIN
+from .const import CONF_MODEL, DOMAIN
 from .coordinator import VolcanoHybridConfigEntry, VolcanoHybridCoordinator
+from .volcano_ble import DeviceFamily
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -23,11 +25,12 @@ PLATFORMS: list[Platform] = [
 async def async_setup_entry(
     hass: HomeAssistant, entry: VolcanoHybridConfigEntry
 ) -> bool:
-    """Set up Volcano Hybrid from a config entry."""
+    """Set up a Storz & Bickel device from a config entry."""
     coordinator = VolcanoHybridCoordinator(
         hass,
         config_entry=entry,
         address=entry.data[CONF_ADDRESS],
+        family=DeviceFamily(entry.data[CONF_MODEL]),
     )
     entry.runtime_data = coordinator
 
@@ -46,6 +49,21 @@ async def async_setup_entry(
     entry.async_create_background_task(
         hass, coordinator.async_refresh(), f"{DOMAIN}_first_refresh"
     )
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """
+    Migrate old entries.
+
+    Version 1 entries predate family support and were only ever Volcano Hybrids.
+    """
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(
+            entry,
+            data={**entry.data, CONF_MODEL: DeviceFamily.VOLCANO_HYBRID.value},
+            version=2,
+        )
     return True
 
 

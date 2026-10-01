@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_ADDRESS
@@ -10,6 +10,9 @@ from homeassistant.core import HomeAssistant
 
 from .const import format_register
 from .coordinator import VolcanoHybridConfigEntry
+
+if TYPE_CHECKING:
+    from .volcano_ble import VolcanoHybridData
 
 TO_REDACT = {CONF_ADDRESS, "connected_addr", "serial_number"}
 
@@ -19,7 +22,8 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     coordinator = entry.runtime_data
-    data = coordinator.data
+    # Only the Volcano is built so far, so its data is what the coordinator holds.
+    data = cast("VolcanoHybridData", coordinator.data)
     return async_redact_data(
         {
             "entry_data": dict(entry.data),

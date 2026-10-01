@@ -27,7 +27,14 @@ from .const import (
     DEFAULT_DELAYED_RECONNECT_DELAY,
     DOMAIN,
 )
-from .volcano_ble import VolcanoBLE, VolcanoHybridData
+from .volcano_ble import (
+    DeviceData,
+    DeviceFamily,
+    StorzBickelDevice,
+    UnsupportedCommandError,
+    create_device,
+)
+from .volcano_ble.const import FAMILY_MODEL_NAME
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -35,33 +42,10 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-# The model shown until the device reports its own. Not only a placeholder: a
-# device that has never connected, or whose BLE module does not serve the model
-# characteristic, keeps this.
-DEFAULT_MODEL = "Volcano Hybrid"
-
-
-def _model_name(reported: str | None) -> str:
-    """
-    Render the model the device reports as the name people know it by.
-
-    The device answers a bare product class — `HYBRID` on the unit this was
-    read from, and the firmware seeds that from a model class that also has a
-    Medic variant. Shown verbatim it would replace the "Volcano Hybrid" the
-    device registry has always displayed with a shoutier version of the same
-    fact, so the class is titled and prefixed instead: `HYBRID` renders exactly
-    what was there before, while a different class still reads correctly.
-    Anything that is not a plain word is left alone rather than dressed up.
-    """
-    if not reported or not reported.isalpha():
-        return DEFAULT_MODEL
-    return f"Volcano {reported.capitalize()}"
-
-
 type VolcanoHybridConfigEntry = ConfigEntry[VolcanoHybridCoordinator]
 
 
-class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
+class VolcanoHybridCoordinator(DataUpdateCoordinator[DeviceData]):
     """Coordinator that maintains the BLE connection and pushes device updates."""
 
     config_entry: VolcanoHybridConfigEntry
@@ -71,12 +55,15 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
         hass: HomeAssistant,
         config_entry: VolcanoHybridConfigEntry,
         address: str,
+        family: DeviceFamily,
     ) -> None:
         """Initialize the coordinator."""
+        self.family = family
+        model = FAMILY_MODEL_NAME[family]
         super().__init__(
             hass,
             _LOGGER,
-            name="Volcano Hybrid",
+            name=model,
             config_entry=config_entry,
             update_interval=timedelta(seconds=10),
             always_update=True,
@@ -84,12 +71,14 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
 
         self.device_info = DeviceInfo(
             identifiers={(DOMAIN, address)},
-            name="Volcano Hybrid",
+            name=model,
             manufacturer="Storz & Bickel",
-            model=DEFAULT_MODEL,
+            model=model,
             connections={(CONNECTION_BLUETOOTH, address)},
         )
-        self._device = VolcanoBLE(self.async_update_listeners, self.update_device)
+        self._device: StorzBickelDevice = create_device(
+            family, self.async_update_listeners, self.update_device
+        )
         self.data = self._device.data
         self.address = address
         self._was_connected = False
@@ -193,7 +182,7 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
         self._cancel_connect_timer()
         await self._device.async_disconnect()
 
-    async def _async_update_data(self) -> VolcanoHybridData:
+    async def _async_update_data(self) -> DeviceData:
         """Reconnect/refresh on the coordinator interval (a fallback poll)."""
         await self._async_refresh_device(connect=self.auto_connect)
         return self._device.data
@@ -221,11 +210,9 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
         connected = self._device.is_connected
         if connected != self._was_connected:
             if connected:
-                _LOGGER.info("Connected to the Volcano Hybrid at %s", self.address)
+                _LOGGER.info("Connected to the %s at %s", self.name, self.address)
             else:
-                _LOGGER.info(
-                    "Connection to the Volcano Hybrid at %s lost", self.address
-                )
+                _LOGGER.info("Connection to the %s at %s lost", self.name, self.address)
             self._was_connected = connected
         self.last_update_success = connected
         super().async_update_listeners()
@@ -237,7 +224,7 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
         # this point describe the same device; its identifiers are deliberately
         # untouched, since they are what the device is keyed by and every
         # entity's unique id is derived from the address alongside them.
-        model = _model_name(self.data.model)
+        model = self.data.model_name
         self.device_info["model"] = model
 
         dev_reg = dr.async_get(self.hass)
@@ -257,6 +244,11 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[VolcanoHybridData]):
         """Run a device command, raising HomeAssistantError when it fails."""
         try:
             written = await command
+        except UnsupportedCommandError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="not_supported",
+            ) from err
         except BleakError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

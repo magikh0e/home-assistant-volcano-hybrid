@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from habluetooth.models import BluetoothServiceInfoBleak
 from homeassistant.config_entries import SOURCE_BLUETOOTH, SOURCE_USER
 from homeassistant.const import CONF_ADDRESS
@@ -16,10 +17,19 @@ from custom_components.volcano_hybrid.config_flow import VolcanoHybridConfigFlow
 from custom_components.volcano_hybrid.const import (
     CONF_AUTO_CONNECT_DELAY,
     CONF_DELAYED_RECONNECT_DELAY,
+    CONF_MODEL,
     DOMAIN,
 )
+from custom_components.volcano_hybrid.volcano_ble.const import QVAP_SERVICE_UUID
 
-from . import VOLCANO_ADDRESS, VOLCANO_NAME, make_service_info
+from . import (
+    CRAFTY_NAME,
+    VEAZY_NAME,
+    VENTY_NAME,
+    VOLCANO_ADDRESS,
+    VOLCANO_NAME,
+    make_service_info,
+)
 
 OTHER_ADDRESS = "11:22:33:44:55:66"
 OTHER_NAME = "S&B VOLCANO H 654321"
@@ -40,8 +50,9 @@ def _volcano_entry(
     return MockConfigEntry(
         domain=DOMAIN,
         unique_id=address,
-        data={CONF_ADDRESS: address},
+        data={CONF_ADDRESS: address, CONF_MODEL: "volcano_hybrid"},
         title=name,
+        version=2,
     )
 
 
@@ -64,7 +75,10 @@ async def test_user_flow_creates_entry(
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == VOLCANO_NAME
-    assert result["data"] == {CONF_ADDRESS: VOLCANO_ADDRESS}
+    assert result["data"] == {
+        CONF_ADDRESS: VOLCANO_ADDRESS,
+        CONF_MODEL: "volcano_hybrid",
+    }
     assert result["result"].unique_id == VOLCANO_ADDRESS
     assert len(mock_setup_entry.mock_calls) == 1
 
@@ -122,7 +136,10 @@ async def test_bluetooth_flow_creates_entry(
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == VOLCANO_NAME
-    assert result["data"] == {CONF_ADDRESS: VOLCANO_ADDRESS}
+    assert result["data"] == {
+        CONF_ADDRESS: VOLCANO_ADDRESS,
+        CONF_MODEL: "volcano_hybrid",
+    }
     assert result["result"].unique_id == VOLCANO_ADDRESS
     assert len(mock_setup_entry.mock_calls) == 1
 
@@ -189,7 +206,7 @@ async def test_reconfigure_to_new_device(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
-    assert entry.data == {CONF_ADDRESS: OTHER_ADDRESS}
+    assert entry.data == {CONF_ADDRESS: OTHER_ADDRESS, CONF_MODEL: "volcano_hybrid"}
     assert entry.unique_id == OTHER_ADDRESS
     assert entry.title == OTHER_NAME
 
@@ -214,7 +231,7 @@ async def test_reconfigure_keeps_current_device(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
-    assert entry.data == {CONF_ADDRESS: VOLCANO_ADDRESS}
+    assert entry.data == {CONF_ADDRESS: VOLCANO_ADDRESS, CONF_MODEL: "volcano_hybrid"}
     assert entry.unique_id == VOLCANO_ADDRESS
 
 
@@ -253,3 +270,67 @@ async def test_options_flow(hass: HomeAssistant) -> None:
         CONF_AUTO_CONNECT_DELAY: 2.5,
         CONF_DELAYED_RECONNECT_DELAY: 15.0,
     }
+
+
+@pytest.mark.parametrize(
+    ("name", "manufacturer_id", "model"),
+    [
+        (VOLCANO_NAME, 1736, "volcano_hybrid"),
+        (CRAFTY_NAME, 76, "crafty"),
+        (VENTY_NAME, 76, "venty"),
+        (VEAZY_NAME, 76, "veazy"),
+    ],
+)
+async def test_bluetooth_flow_records_the_family(
+    hass: HomeAssistant,
+    mock_setup_entry: AsyncMock,
+    name: str,
+    manufacturer_id: int,
+    model: str,
+) -> None:
+    """Every family is discovered and its model is stored in the entry."""
+    info = make_service_info(name=name, manufacturer_id=manufacturer_id)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_BLUETOOTH}, data=info
+    )
+    assert result["type"] is FlowResultType.FORM
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == name
+    assert result["data"] == {CONF_ADDRESS: VOLCANO_ADDRESS, CONF_MODEL: model}
+
+
+async def test_bluetooth_flow_refuses_an_unknown_qvap_device(
+    hass: HomeAssistant,
+) -> None:
+    """A Qvap service with an unknown name is not set up as a guess."""
+    info = make_service_info(
+        name="S&B XX000000", manufacturer_id=76, service_uuids=[QVAP_SERVICE_UUID]
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_BLUETOOTH}, data=info
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_supported"
+
+
+async def test_user_flow_offers_every_family(
+    hass: HomeAssistant, mock_setup_entry: AsyncMock
+) -> None:
+    """The dropdown lists a Crafty next to a Volcano and records its family."""
+    crafty = make_service_info(
+        address=OTHER_ADDRESS, name=CRAFTY_NAME, manufacturer_id=76
+    )
+    with _patch_discovered([make_service_info(), crafty]):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ADDRESS: OTHER_ADDRESS}
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == CRAFTY_NAME
+    assert result["data"] == {CONF_ADDRESS: OTHER_ADDRESS, CONF_MODEL: "crafty"}

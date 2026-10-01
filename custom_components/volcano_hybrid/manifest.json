@@ -1,10 +1,28 @@
 {
   "domain": "volcano_hybrid",
-  "name": "Volcano Hybrid",
+  "name": "Storz & Bickel",
   "bluetooth": [
     {
       "manufacturer_id": 1736,
       "local_name": "S&B VOLCANO*"
+    },
+    {
+      "local_name": "S&B VY*"
+    },
+    {
+      "local_name": "S&B VZ*"
+    },
+    {
+      "service_uuid": "00000000-5354-4f52-5a26-4249434b454c"
+    },
+    {
+      "local_name": "STORZ&BICKEL*"
+    },
+    {
+      "local_name": "Storz&Bickel*"
+    },
+    {
+      "service_uuid": "00000001-4c45-4b43-4942-265a524f5453"
     }
   ],
   "codeowners": [

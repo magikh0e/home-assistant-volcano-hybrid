@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
 from homeassistant.components.update import (
     UpdateDeviceClass,
     UpdateEntity,
@@ -20,6 +22,9 @@ from .firmware import (
     parse_firmware_version,
 )
 from .volcano_ble import VolcanoSensor
+
+if TYPE_CHECKING:
+    from .volcano_ble import VolcanoHybridData
 
 PARALLEL_UPDATES = 0
 
@@ -59,7 +64,8 @@ class VolcanoUpdateEntity(VolcanoHybridEntity, UpdateEntity):
     @property
     def _installed(self) -> tuple[int, int] | None:
         """Return the firmware version the device reported, if any."""
-        data = self.coordinator.data
+        # Only the Volcano is built so far, so its data is what the coordinator holds.
+        data = cast("VolcanoHybridData", self.coordinator.data)
         # firmware_version is the string surfaced as the device's sw_version and
         # is the one confirmed to track the vendor's published version numbers;
         # firmware only stands in when it is missing.

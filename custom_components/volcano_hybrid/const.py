@@ -9,6 +9,9 @@ DOMAIN = "volcano_hybrid"
 
 VOLCANO_HYBRID_MIN_DISPLAY_TEMP = 40
 
+# Config entry data
+CONF_MODEL = "model"
+
 # Options
 CONF_AUTO_CONNECT_DELAY = "auto_connect_delay"
 CONF_DELAYED_RECONNECT_DELAY = "delayed_reconnect_delay"
@@ -37,6 +40,7 @@ def format_register(value: int | None) -> str | None:
 __all__ = [
     "CONF_AUTO_CONNECT_DELAY",
     "CONF_DELAYED_RECONNECT_DELAY",
+    "CONF_MODEL",
     "DEFAULT_AUTO_CONNECT_DELAY",
     "DEFAULT_DELAYED_RECONNECT_DELAY",
     "DOMAIN",

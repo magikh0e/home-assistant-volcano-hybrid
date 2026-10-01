@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -240,5 +240,9 @@ class VolcanoSensorEntity(VolcanoHybridEntity, SensorEntity):
             self.coordinator.data.get(self._key)
         )
         if (attributes_fn := self.entity_description.attributes_fn) is not None:
-            self._attr_extra_state_attributes = attributes_fn(self.coordinator.data)
+            # Only the Volcano is built so far, so its data is what the
+            # coordinator holds.
+            self._attr_extra_state_attributes = attributes_fn(
+                cast("VolcanoHybridData", self.coordinator.data)
+            )
         super()._handle_coordinator_update()

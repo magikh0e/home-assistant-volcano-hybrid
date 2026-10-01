@@ -6,8 +6,12 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import pytest
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+from custom_components.volcano_hybrid.volcano_ble import UnsupportedCommandError
 
 from . import FakeVolcanoBLE, make_ble_device, make_service_info
 
@@ -117,3 +121,17 @@ async def test_scheduled_connect_skipped_when_already_connected(
         await hass.async_block_till_done()
 
         assert mock_volcano.manual_update_count == 0
+
+
+async def test_unsupported_command_raises_translated_error(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_volcano: FakeVolcanoBLE,
+) -> None:
+    """A command the device cannot carry out raises a translated error."""
+    mock_volcano.connected = True
+    mock_volcano.error = UnsupportedCommandError()
+
+    with pytest.raises(HomeAssistantError) as err:
+        await init_integration.runtime_data.set_vibration(on=True)
+    assert err.value.translation_key == "not_supported"
