@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 ESTABLISH_CONNECTION = (
-    "custom_components.volcano_hybrid.volcano_ble.volcano_ble.establish_connection"
+    "custom_components.volcano_hybrid.volcano_ble.device.establish_connection"
 )
 
 
