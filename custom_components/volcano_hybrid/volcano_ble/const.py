@@ -95,6 +95,20 @@ class VolcanoSensor(StrEnum):
     SYSTEM_STATUS = "system_status"
     BATTERY_STATUS1 = "battery_status1"
     BATTERY_STATUS2 = "battery_status2"
+    SUPERBOOST_TEMP = "superboost_temp"
+    HEATER_MODE = "heater_mode"
+    CHARGING = "charging"
+    CHARGE_OPTIMIZATION = "charge_optimization"
+    CHARGE_LIMIT = "charge_limit"
+    BOOST_VISUALIZATION = "boost_visualization"
+    BOOST_TIMEOUT_DISABLED = "boost_timeout_disabled"
+    PERMANENT_BLUETOOTH = "permanent_bluetooth"
+    PERMANENT_BLUETOOTH_ENABLED = "permanent_bluetooth_enabled"
+    BRIGHTNESS = "brightness"
+    CHARGING_TIME = "charging_time"
+    COLOR = "color"
+    BOOTLOADER_MODE = "bootloader_mode"
+    TARGET_CHANGED_ON_DEVICE = "target_changed_on_device"
 
 
 STORZ_BICKEL_MANUFACTURER_ID = 1736
