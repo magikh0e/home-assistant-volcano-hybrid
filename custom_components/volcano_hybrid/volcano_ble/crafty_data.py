@@ -25,7 +25,9 @@ MASK_PRJSTAT2_DISABLE_CHARGELED = 0x0002
 MASK_PRJSTAT2_SET_TEMP_REACHED = 0x0004
 MASK_PRJSTAT2_FIND_DEVICE = 0x0008
 MASK_PRJSTAT2_ENABLE_AUTOBLESHUTDOWN = 0x1000
-# System / battery status words (spec §4.3): the "contact support" masks
+# System / battery status words (spec §4.3): the "contact support" masks are the
+# app's, but testing them as "any bit set" is inferred from the table (STRONG),
+# not confirmed.
 MASK_SYSTEM_ERROR = 0x0280
 MASK_BATTERY1_ERROR = 0x0600
 
@@ -41,6 +43,7 @@ _FIRMWARE = re.compile(r"^V?(\d{2})\.(\d{2})")
 
 def decode_target(raw: int) -> int:
     """Turn a target reading (x10) into whole °C, converting a °F reading."""
+    # A °F target between 104 and 210 °F is indistinguishable from °C (as in the app).
     target = round(raw / 10)
     if target > CRAFTY_MAX_CELSIUS:
         return round((target - 32) / 1.8)
@@ -168,7 +171,11 @@ class CraftyData(DeviceData):
         self.auto_ble_shutdown = bool(word & MASK_PRJSTAT2_ENABLE_AUTOBLESHUTDOWN)
 
     def apply_status_words(self) -> None:
-        """Combine the 'contact support' masks the vendor app tests (spec §4.3)."""
+        """
+        Combine the app's 'contact support' masks (spec §4.3).
+
+        Reading each as "any bit set" is inferred (STRONG), not confirmed.
+        """
         self.error = bool(
             (self.prj1 or 0) & MASK_PRJSTAT_ERROR
             or (self.system_status or 0) & MASK_SYSTEM_ERROR

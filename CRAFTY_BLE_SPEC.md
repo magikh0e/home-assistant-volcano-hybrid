@@ -179,6 +179,10 @@ STRONG for meaning):
 | System | `0x0200` | contact support (error) |
 | System | `0x0280` | app sets `deviceHasErrors` on connect |
 
+Whether the app tests each mask as any-bit (`word & mask`) or exact (`word == mask`) is not
+confirmed. The integration reads them as any-bit, which the overlapping rows (`0x0200` inside
+`0x0280`, `0x0003` as a pair of bits) support (STRONG, not CONFIRMED).
+
 The support report the app builds lists, in order: serial, timestamp, PRJSTAT1, PRJSTAT2,
 Battery 1, Battery 2, System — the same shape as the Volcano's five-register report, which is
 why an integration should expose these raw as diagnostic sensors rather than decode them.
