@@ -110,6 +110,31 @@ SENSOR_DESCRIPTIONS: dict[str, BinarySensorEntityDescription] = {
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
+    VolcanoSensor.CHARGING: BinarySensorEntityDescription(
+        key=VolcanoSensor.CHARGING,
+        translation_key=VolcanoSensor.CHARGING,
+        device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
+        entity_registry_enabled_default=True,
+    ),
+    VolcanoSensor.TARGET_CHANGED_ON_DEVICE: BinarySensorEntityDescription(
+        key=VolcanoSensor.TARGET_CHANGED_ON_DEVICE,
+        translation_key=VolcanoSensor.TARGET_CHANGED_ON_DEVICE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.BOOTLOADER_MODE: BinarySensorEntityDescription(
+        key=VolcanoSensor.BOOTLOADER_MODE,
+        translation_key=VolcanoSensor.BOOTLOADER_MODE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_registry_enabled_default=True,
+    ),
+    VolcanoSensor.PERMANENT_BLUETOOTH_ENABLED: BinarySensorEntityDescription(
+        key=VolcanoSensor.PERMANENT_BLUETOOTH_ENABLED,
+        translation_key=VolcanoSensor.PERMANENT_BLUETOOTH_ENABLED,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
 }
 
 
@@ -129,6 +154,10 @@ BINARY_SENSOR_KEYS: tuple[tuple[VolcanoSensor, bool, bool | None], ...] = (
     (VolcanoSensor.ERROR, False, None),
     (VolcanoSensor.NEEDS_FACTORY_RESET, False, None),
     (VolcanoSensor.FIND_MODE, False, None),
+    (VolcanoSensor.CHARGING, False, None),
+    (VolcanoSensor.TARGET_CHANGED_ON_DEVICE, False, None),
+    (VolcanoSensor.BOOTLOADER_MODE, False, None),
+    (VolcanoSensor.PERMANENT_BLUETOOTH_ENABLED, False, None),
     (VolcanoSensor.CONNECTED, True, False),
 )
 

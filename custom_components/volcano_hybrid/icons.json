@@ -15,6 +15,15 @@
       },
       "find_mode": {
         "default": "mdi:vibrate"
+      },
+      "target_changed_on_device": {
+        "default": "mdi:gesture-tap-button"
+      },
+      "bootloader_mode": {
+        "default": "mdi:alert-decagram"
+      },
+      "permanent_bluetooth_enabled": {
+        "default": "mdi:bluetooth"
       }
     },
     "button": {
@@ -40,6 +49,12 @@
       },
       "auto_off_seconds": {
         "default": "mdi:timer-off-outline"
+      },
+      "superboost_temp": {
+        "default": "mdi:thermometer-high"
+      },
+      "brightness": {
+        "default": "mdi:brightness-6"
       }
     },
     "sensor": {
@@ -90,6 +105,15 @@
       },
       "battery_status2": {
         "default": "mdi:memory"
+      },
+      "heater_mode": {
+        "default": "mdi:fire"
+      },
+      "charging_time": {
+        "default": "mdi:battery-clock"
+      },
+      "color": {
+        "default": "mdi:palette"
       }
     },
     "switch": {
@@ -110,6 +134,21 @@
       },
       "auto_ble_shutdown": {
         "default": "mdi:bluetooth-off"
+      },
+      "charge_optimization": {
+        "default": "mdi:battery-heart-variant"
+      },
+      "charge_limit": {
+        "default": "mdi:battery-80"
+      },
+      "boost_visualization": {
+        "default": "mdi:eye"
+      },
+      "boost_timeout_disabled": {
+        "default": "mdi:timer-off"
+      },
+      "permanent_bluetooth": {
+        "default": "mdi:bluetooth-connect"
       }
     },
     "update": {

@@ -24,6 +24,7 @@ from .const import format_register
 from .coordinator import VolcanoHybridConfigEntry, VolcanoHybridCoordinator
 from .entity import VolcanoHybridEntity
 from .volcano_ble import FAULT_OPTIONS, VolcanoHybridData, VolcanoSensor
+from .volcano_ble.qvap_data import COLOR_OPTIONS, HEATER_MODE_OPTIONS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -59,6 +60,9 @@ class VolcanoSensorEntityDescription(SensorEntityDescription):
     """Describes a Volcano sensor, with how its device value is presented."""
 
     value_fn: Callable[[Any], Any] = _unchanged
+    # The data attribute to read when it is not the one named by the key, such
+    # as a derived value that the key itself only stands in for.
+    value_key: str | None = None
     # Sensors that report more than a single value take the whole data object,
     # since what belongs in the attributes is rarely what the state is keyed on.
     attributes_fn: Callable[[VolcanoHybridData], dict[str, Any]] | None = None
@@ -221,6 +225,31 @@ SENSOR_DESCRIPTIONS: dict[str, VolcanoSensorEntityDescription] = {
         entity_registry_enabled_default=False,
         value_fn=format_register,
     ),
+    VolcanoSensor.HEATER_MODE: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.HEATER_MODE,
+        translation_key=VolcanoSensor.HEATER_MODE,
+        device_class=SensorDeviceClass.ENUM,
+        options=HEATER_MODE_OPTIONS,
+        value_key="heater_mode_name",
+    ),
+    VolcanoSensor.CHARGING_TIME: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.CHARGING_TIME,
+        translation_key=VolcanoSensor.CHARGING_TIME,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        suggested_unit_of_measurement=UnitOfTime.HOURS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.COLOR: VolcanoSensorEntityDescription(
+        key=VolcanoSensor.COLOR,
+        translation_key=VolcanoSensor.COLOR,
+        device_class=SensorDeviceClass.ENUM,
+        options=COLOR_OPTIONS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
 }
 
 
@@ -245,6 +274,9 @@ SENSOR_KEYS: tuple[tuple[VolcanoSensor, bool], ...] = (
     (VolcanoSensor.SYSTEM_STATUS, False),
     (VolcanoSensor.BATTERY_STATUS1, False),
     (VolcanoSensor.BATTERY_STATUS2, False),
+    (VolcanoSensor.HEATER_MODE, False),
+    (VolcanoSensor.CHARGING_TIME, False),
+    (VolcanoSensor.COLOR, False),
 )
 
 
@@ -283,7 +315,7 @@ class VolcanoSensorEntity(VolcanoHybridEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = self.entity_description.value_fn(
-            self.coordinator.data.get(self._key)
+            self.coordinator.data.get(self.entity_description.value_key or self._key)
         )
         if (attributes_fn := self.entity_description.attributes_fn) is not None:
             # Only the Volcano is built so far, so its data is what the

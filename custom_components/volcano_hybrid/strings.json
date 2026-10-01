@@ -89,6 +89,18 @@
       },
       "find_mode": {
         "name": "Find mode active"
+      },
+      "charging": {
+        "name": "Charging"
+      },
+      "target_changed_on_device": {
+        "name": "Target changed on device"
+      },
+      "bootloader_mode": {
+        "name": "Bootloader mode"
+      },
+      "permanent_bluetooth_enabled": {
+        "name": "Permanent Bluetooth"
       }
     },
     "button": {
@@ -114,6 +126,12 @@
       },
       "auto_off_seconds": {
         "name": "Auto off time"
+      },
+      "superboost_temp": {
+        "name": "Superboost temperature"
+      },
+      "brightness": {
+        "name": "Display brightness"
       }
     },
     "sensor": {
@@ -188,6 +206,27 @@
       },
       "battery_status2": {
         "name": "Battery status 2"
+      },
+      "heater_mode": {
+        "name": "Heater mode",
+        "state": {
+          "off": "Off",
+          "heating": "Heating",
+          "boost": "Boost",
+          "superboost": "Superboost"
+        }
+      },
+      "charging_time": {
+        "name": "Total charging time"
+      },
+      "color": {
+        "name": "Colour",
+        "state": {
+          "black": "Black",
+          "blue": "Blue",
+          "pink": "Pink",
+          "orange": "Orange"
+        }
       }
     },
     "switch": {
@@ -208,6 +247,21 @@
       },
       "auto_ble_shutdown": {
         "name": "Automatic Bluetooth shutdown"
+      },
+      "charge_optimization": {
+        "name": "Charge optimization"
+      },
+      "charge_limit": {
+        "name": "Charge limit"
+      },
+      "boost_visualization": {
+        "name": "Boost visualization"
+      },
+      "boost_timeout_disabled": {
+        "name": "Boost timeout disabled"
+      },
+      "permanent_bluetooth": {
+        "name": "Permanent Bluetooth"
       }
     },
     "update": {

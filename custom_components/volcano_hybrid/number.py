@@ -58,6 +58,27 @@ SENSOR_DESCRIPTIONS: dict[str, NumberEntityDescription] = {
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
+    VolcanoSensor.SUPERBOOST_TEMP: NumberEntityDescription(
+        key=VolcanoSensor.SUPERBOOST_TEMP,
+        translation_key=VolcanoSensor.SUPERBOOST_TEMP,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.BOX,
+        native_min_value=1,
+        native_max_value=99,
+        native_step=1,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+    ),
+    VolcanoSensor.BRIGHTNESS: NumberEntityDescription(
+        key=VolcanoSensor.BRIGHTNESS,
+        translation_key=VolcanoSensor.BRIGHTNESS,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.SLIDER,
+        native_min_value=1,
+        native_max_value=9,
+        native_step=1,
+        entity_registry_enabled_default=False,
+    ),
     VolcanoSensor.AUTO_OFF_SECONDS: NumberEntityDescription(
         key=VolcanoSensor.AUTO_OFF_SECONDS,
         translation_key=VolcanoSensor.AUTO_OFF_SECONDS,
@@ -78,6 +99,8 @@ NUMBER_KEYS: tuple[VolcanoSensor, ...] = (
     VolcanoSensor.LED_BRIGHTNESS,
     VolcanoSensor.BOOST_TEMP,
     VolcanoSensor.AUTO_OFF_SECONDS,
+    VolcanoSensor.SUPERBOOST_TEMP,
+    VolcanoSensor.BRIGHTNESS,
 )
 
 

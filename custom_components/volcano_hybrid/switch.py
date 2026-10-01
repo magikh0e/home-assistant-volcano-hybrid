@@ -63,6 +63,41 @@ SENSOR_DESCRIPTIONS: dict[str, SwitchEntityDescription] = {
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
+    VolcanoSensor.CHARGE_OPTIMIZATION: SwitchEntityDescription(
+        key=VolcanoSensor.CHARGE_OPTIMIZATION,
+        translation_key=VolcanoSensor.CHARGE_OPTIMIZATION,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.CHARGE_LIMIT: SwitchEntityDescription(
+        key=VolcanoSensor.CHARGE_LIMIT,
+        translation_key=VolcanoSensor.CHARGE_LIMIT,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.BOOST_VISUALIZATION: SwitchEntityDescription(
+        key=VolcanoSensor.BOOST_VISUALIZATION,
+        translation_key=VolcanoSensor.BOOST_VISUALIZATION,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+    ),
+    VolcanoSensor.BOOST_TIMEOUT_DISABLED: SwitchEntityDescription(
+        key=VolcanoSensor.BOOST_TIMEOUT_DISABLED,
+        translation_key=VolcanoSensor.BOOST_TIMEOUT_DISABLED,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+    ),
+    # Decides whether the device is reachable at all, so it is on by default.
+    VolcanoSensor.PERMANENT_BLUETOOTH: SwitchEntityDescription(
+        key=VolcanoSensor.PERMANENT_BLUETOOTH,
+        translation_key=VolcanoSensor.PERMANENT_BLUETOOTH,
+        device_class=SwitchDeviceClass.SWITCH,
+        entity_category=EntityCategory.CONFIG,
+    ),
 }
 
 
@@ -72,6 +107,11 @@ SWITCH_KEYS: tuple[VolcanoSensor, ...] = (
     VolcanoSensor.VIBRATION,
     VolcanoSensor.CHARGE_LED,
     VolcanoSensor.AUTO_BLE_SHUTDOWN,
+    VolcanoSensor.CHARGE_OPTIMIZATION,
+    VolcanoSensor.CHARGE_LIMIT,
+    VolcanoSensor.BOOST_VISUALIZATION,
+    VolcanoSensor.BOOST_TIMEOUT_DISABLED,
+    VolcanoSensor.PERMANENT_BLUETOOTH,
 )
 
 
