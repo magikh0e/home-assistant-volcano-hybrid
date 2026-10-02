@@ -156,6 +156,30 @@ async def test_old_firmware_skips_the_settings_characteristics() -> None:
     assert client.written == []
 
 
+async def test_unparseable_firmware_is_treated_like_old_firmware() -> None:
+    """
+    A firmware string that says nothing about the generation reads nothing extra.
+
+    Regression test: unknown firmware was read as new, so the settings side
+    was read too, and a device that did not serve the (required) auto-off
+    countdown dropped every connect and reconnected in a loop. The commands
+    already refused unknown firmware; the reads now agree with them.
+    """
+    values = {k: v for k, v in crafty_plus_values().items() if k not in SETTINGS_CHARS}
+    values[CHAR_FIRMWARE] = b"garbage"
+    client = FakeBleakClient(values, missing=SETTINGS_CHARS)
+    device = await connect(client)
+
+    assert device.is_connected
+    assert device.data.is_old_firmware is None
+    assert device.data.auto_off_seconds is None
+    assert device.data.auto_off_countdown is None
+    assert device.data.system_status is None
+    assert device.data.current_temp == 183
+    with pytest.raises(UnsupportedCommandError):
+        await device.async_set_heater(True)
+
+
 async def test_a_missing_required_characteristic_drops_the_link() -> None:
     """Unlike the optional settings side, a missing current temperature fails."""
     values = crafty_plus_values()

@@ -107,7 +107,11 @@ class CraftyDevice(StorzBickelDevice):
                 SERVICE_STATUS, CHAR_PRJSTAT2, self._parse_prjstat2, subscribe=True
             ),
         ]
-        if not self.data.is_old_firmware:
+        # Only firmware known to be V02.51 or newer has the settings side. A
+        # string that does not parse is treated like old firmware, as the
+        # commands treat it: reading the countdown (required) off a device
+        # that lacks it would drop every connect.
+        if self.data.is_old_firmware is False:
             reads += [
                 self._async_read_optional(
                     SERVICE_CONTROL, CHAR_AUTO_OFF_SETTING, self._parse_auto_off_setting
