@@ -25,6 +25,7 @@ class VolcanoHybridData(DeviceData):
     family = DeviceFamily.VOLCANO_HYBRID
     MIN_TEMP = VOLCANO_HYBRID_MIN_TEMP
     MAX_TEMP = VOLCANO_HYBRID_MAX_TEMP
+    MAX_READING = VOLCANO_HYBRID_MAX_TEMP
     MIN_DISPLAY_TEMP = 40
     capabilities = frozenset(
         {
@@ -225,7 +226,16 @@ class VolcanoHybridData(DeviceData):
 
     @property
     def current_on_time(self) -> float | None:
-        """Get the current on time in minutes."""
+        """
+        Get the current on time in minutes.
+
+        None when the countdown exceeds the setting: the countdown is only
+        loaded when an actuator switches on and nothing else reloads it
+        (VOLCANO_BLE_SPEC.md §2, STRONG), so lowering the auto-off setting
+        mid-session leaves an on time that cannot be derived, not a negative
+        one.
+        """
         if self.shut_off is None or self.current_auto_off_time is None:
             return None
-        return self.shut_off - self.current_auto_off_time
+        on_time = self.shut_off - self.current_auto_off_time
+        return on_time if on_time >= 0 else None

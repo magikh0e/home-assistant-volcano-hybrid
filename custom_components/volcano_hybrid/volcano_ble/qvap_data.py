@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from .const import (
+    PORTABLE_MAX_READING,
     PORTABLE_MAX_TEMP,
     PORTABLE_MIN_DISPLAY_TEMP,
     PORTABLE_MIN_TEMP,
@@ -76,6 +77,7 @@ class QvapData(DeviceData):
 
     MIN_TEMP = PORTABLE_MIN_TEMP
     MAX_TEMP = PORTABLE_MAX_TEMP
+    MAX_READING = PORTABLE_MAX_READING
     MIN_DISPLAY_TEMP = PORTABLE_MIN_DISPLAY_TEMP
     # The Veazy reports the visualisation bit inverted (spec §2.3).
     INVERT_BOOST_VISUALIZATION: ClassVar[bool] = False

@@ -162,11 +162,19 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[DeviceData]):
         elif self._connect_timer is not None:
             return
 
-        async def _connect(_now: datetime) -> None:
+        @callback
+        def _connect(_now: datetime) -> None:
             self._connect_timer = None
             if not force and (not self.auto_connect or self._device.is_connected):
                 return
-            await self._async_refresh_device(connect=True)
+            # An entry background task, so unloading the entry cancels a
+            # connect still in flight; otherwise it could finish after the
+            # shutdown's disconnect and leave a connection nothing owns.
+            self.config_entry.async_create_background_task(
+                self.hass,
+                self._async_refresh_device(connect=True),
+                f"{DOMAIN}_connect",
+            )
 
         self._connect_timer = async_call_later(self.hass, delay, _connect)
 
@@ -180,6 +188,9 @@ class VolcanoHybridCoordinator(DataUpdateCoordinator[DeviceData]):
     async def async_shutdown(self) -> None:
         """Shutdown the coordinator."""
         self._cancel_connect_timer()
+        # The base marks the coordinator shut down, so a refresh after unload
+        # no longer reaches the device (and, with auto-connect on, reconnects).
+        await super().async_shutdown()
         await self._device.async_disconnect()
 
     async def _async_update_data(self) -> DeviceData:

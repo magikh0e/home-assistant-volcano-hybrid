@@ -42,6 +42,13 @@ FAMILY_MODEL_NAME: dict[DeviceFamily, str] = {
 PORTABLE_MIN_TEMP = 0
 PORTABLE_MAX_TEMP = 210
 PORTABLE_MIN_DISPLAY_TEMP = 40
+# The highest current temperature taken as a reading. 210 °C is only the top of
+# the *target* range: boost and superboost add an offset on top of it, so a real
+# reading can exceed it. Neither CRAFTY_BLE_SPEC.md nor VENTY_BLE_SPEC.md states
+# a sentinel or "no reading" value; 230 °C (raw 2300) is the cut-off the
+# janisstreib fork applies to both families, from its reading of the vendor web
+# app — unverified on hardware.
+PORTABLE_MAX_READING = 230
 
 
 class VolcanoSensor(StrEnum):

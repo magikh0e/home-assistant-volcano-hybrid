@@ -175,10 +175,17 @@ class StorzBickelDevice(VolcanoHybridDataStatusProvider):
             return False
 
         self._after_data_updated()
+        # A required characteristic that cannot be read drops the link: kept,
+        # it would leave the device "connected" with half its state unknown and
+        # some notifications never subscribed, and nothing would reconnect it to
+        # read the rest. Dropped, the next poll or advertisement retries the
+        # whole read. Characteristics not every device serves go through
+        # _async_read_optional, which never raises, so they cannot cause a
+        # reconnect loop. A read over a proxy can time out rather than fail.
         try:
             await self._async_read_and_subscribe_all()
-        except BleakError as err:
-            _LOGGER.debug("Failed to read/subscribe after connect: %s", err)
+        except (BleakError, TimeoutError) as err:
+            _LOGGER.debug("Failed to read/subscribe after connect: %r", err)
             await self.async_disconnect()
             return False
 
@@ -205,10 +212,7 @@ class StorzBickelDevice(VolcanoHybridDataStatusProvider):
 
     async def _async_read_and_subscribe_all(self) -> DeviceData:
         """Read all required characteristics from the BLE device."""
-        try:
-            await self._async_read_initial()
-        except BleakError:
-            _LOGGER.exception("Error reading characteristics")
+        await self._async_read_initial()
         return self.data
 
     async def async_disconnect(self) -> None:

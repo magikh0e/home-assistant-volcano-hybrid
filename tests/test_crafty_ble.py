@@ -156,6 +156,18 @@ async def test_old_firmware_skips_the_settings_characteristics() -> None:
     assert client.written == []
 
 
+async def test_a_missing_required_characteristic_drops_the_link() -> None:
+    """Unlike the optional settings side, a missing current temperature fails."""
+    values = crafty_plus_values()
+    del values[CHAR_CURRENT_TEMP]
+    client = FakeBleakClient(values, missing={CHAR_CURRENT_TEMP})
+    device = await connect(client)
+
+    assert not device.is_connected
+    assert device.client is None
+    assert client.is_connected is False
+
+
 async def test_heater_writes_two_zero_bytes_and_tracks_the_write() -> None:
     """Heater on/off are separate characteristics written with `00 00` (spec §3)."""
     client = FakeBleakClient(crafty_plus_values())

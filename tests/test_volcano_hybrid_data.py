@@ -147,3 +147,19 @@ def test_provider_passthrough() -> None:
 
     assert data.get("rssi") == -42
     assert data.get("connected") is True
+
+
+def test_current_on_time_is_unknown_when_it_would_be_negative() -> None:
+    """
+    Lowering the auto-off setting mid-session leaves the on time underivable.
+
+    The countdown is only loaded when an actuator switches on (spec §2), so a
+    setting lowered below it would yield a negative on time.
+    """
+    data = FakeVolcanoBLE().data
+    data.shut_off = 30
+    data.current_auto_off_time = 50.0
+    assert data.current_on_time is None
+
+    data.shut_off = 60
+    assert data.current_on_time == 10.0

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from .const import (
+    PORTABLE_MAX_READING,
     PORTABLE_MAX_TEMP,
     PORTABLE_MIN_DISPLAY_TEMP,
     PORTABLE_MIN_TEMP,
@@ -63,6 +64,7 @@ class CraftyData(DeviceData):
     family = DeviceFamily.CRAFTY
     MIN_TEMP = PORTABLE_MIN_TEMP
     MAX_TEMP = PORTABLE_MAX_TEMP
+    MAX_READING = PORTABLE_MAX_READING
     MIN_DISPLAY_TEMP = PORTABLE_MIN_DISPLAY_TEMP
     capabilities = frozenset(
         {

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from habluetooth import get_manager
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
@@ -135,3 +137,89 @@ async def test_unsupported_command_raises_translated_error(
     with pytest.raises(HomeAssistantError) as err:
         await init_integration.runtime_data.set_vibration(on=True)
     assert err.value.translation_key == "not_supported"
+
+
+async def test_refresh_after_unload_does_not_reconnect(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_volcano: FakeVolcanoBLE,
+) -> None:
+    """
+    Once the entry is unloaded, a refresh no longer reaches the device.
+
+    The coordinator's shutdown has to run the base class's as well: that is
+    what marks the coordinator shut down, and without it a refresh after unload
+    would still connect, since auto-connect is left enabled.
+    """
+    coordinator = init_integration.runtime_data
+    await hass.config_entries.async_unload(init_integration.entry_id)
+    await hass.async_block_till_done()
+    updates = mock_volcano.manual_update_count
+
+    with (
+        patch(_DEVICE_PATCH, return_value=make_ble_device()),
+        patch(_INFO_PATCH, return_value=make_service_info()),
+    ):
+        await coordinator.async_refresh()
+
+    assert mock_volcano.manual_update_count == updates
+
+
+async def test_unload_cancels_a_connect_in_flight(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_volcano: FakeVolcanoBLE,
+) -> None:
+    """
+    A connect that is still running when the entry unloads is cancelled.
+
+    Left running, it could finish after the shutdown's disconnect and leave a
+    connection behind that nothing owns any more.
+    """
+    coordinator = init_integration.runtime_data
+    started = asyncio.Event()
+    release = asyncio.Event()
+    cancelled = False
+
+    async def blocking_update(_device: object = None) -> object:
+        nonlocal cancelled
+        mock_volcano.manual_update_count += 1
+        started.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        mock_volcano.connected = True
+        return mock_volcano.data
+
+    mock_volcano.async_manual_update = blocking_update  # type: ignore[method-assign]
+
+    try:
+        with (
+            patch(_DEVICE_PATCH, return_value=make_ble_device()),
+            patch(_INFO_PATCH, return_value=make_service_info()),
+        ):
+            # The device advertises; the connect runs once the delay is up.
+            get_manager().scanner_adv_received(make_service_info())
+            async_fire_time_changed(
+                hass,
+                dt_util.utcnow()
+                + timedelta(seconds=coordinator.auto_connect_delay + 1),
+            )
+            await asyncio.wait_for(started.wait(), timeout=5)
+            disconnects = mock_volcano.disconnect_count
+
+            # Not followed by async_block_till_done: a connect that unload
+            # failed to cancel would block it for good.
+            await hass.config_entries.async_unload(init_integration.entry_id)
+            for _ in range(5):
+                await asyncio.sleep(0)
+            assert cancelled
+    finally:
+        # Never leave the connect blocked, so a failure cannot hang the test.
+        release.set()
+        await hass.async_block_till_done()
+
+    assert mock_volcano.disconnect_count > disconnects
+    assert not mock_volcano.connected

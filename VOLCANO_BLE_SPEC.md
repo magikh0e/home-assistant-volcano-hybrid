@@ -585,7 +585,7 @@ Derived values, all computed in the integration rather than read from the device
 | Value | Derivation |
 |---|---|
 | Total heat time | `10110015 * 60 + 10110016` minutes |
-| Current on time | auto-off setting (`1011000d`) − auto-off countdown (`1011000c`); a matched pair, both the session timer (§2) |
+| Current on time | auto-off setting (`1011000d`) − auto-off countdown (`1011000c`); a matched pair, both the session timer (§2). Unknown, not negative, when the countdown exceeds the setting: the countdown is loaded only when an actuator switches on and nothing else reloads it (§2, STRONG), so a setting lowered mid-session leaves it above the new value until the next switch-on |
 | Ready | PRJSTAT1 bit 10, verbatim — so it only re-arms when the target is raised ≥3 °C, and stays on while the device coasts down (§3.1.1) |
 | Heating | current temperature < target temperature. Not bit 10, which does not track the gap, and no element signal exists to use instead (§3.1.2) |
 | Cooling | heater off, display-on-while-cooling enabled (PRJSTAT2 bit 12) and current temperature ≥ 40 °C. Inferred — the device reports nothing during cooldown |

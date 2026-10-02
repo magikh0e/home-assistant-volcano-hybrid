@@ -130,3 +130,13 @@ def test_capabilities_differ_between_venty_and_veazy() -> None:
     assert VolcanoSensor.COLOR not in venty.capabilities
     assert venty.model_name == "Venty"
     assert veazy.model_name == "Veazy"
+
+
+def test_current_temperature_above_the_target_range_is_kept() -> None:
+    """A Venty reading past the 210 °C target maximum (superboost) is kept."""
+    data = FakeDevice(DeviceFamily.VENTY).data
+    data.current_temp = 220
+    assert data.current_temp == 220
+    data.current_temp = 231
+    assert data.current_temp is None
+    assert data.MAX_TEMP == 210

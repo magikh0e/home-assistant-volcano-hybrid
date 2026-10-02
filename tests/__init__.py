@@ -137,6 +137,11 @@ class FakeDevice(VolcanoHybridDataStatusProvider):
         """Get the device rssi."""
         return self.device_rssi
 
+    @rssi.setter
+    def rssi(self, value: int) -> None:
+        """Set the device rssi, as an advertisement does."""
+        self.device_rssi = value
+
     @property
     def is_connected(self) -> bool:
         """Determine whether the device is connected."""

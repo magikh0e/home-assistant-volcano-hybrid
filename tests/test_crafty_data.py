@@ -120,3 +120,18 @@ def test_heat_time_and_capabilities() -> None:
     assert VolcanoSensor.BATTERY in data.capabilities
     assert VolcanoSensor.PUMP_ACTIVE not in data.capabilities
     assert data.MAX_TEMP == 210
+
+
+def test_current_temperature_above_the_target_range_is_kept() -> None:
+    """
+    A reading past the 210 °C target maximum is real (boost overshoots it).
+
+    Only what no heater reaches counts as "no reading".
+    """
+    data = _data()
+    data.current_temp = 220
+    assert data.current_temp == 220
+    data.current_temp = 231
+    assert data.current_temp is None
+    # The target range is unchanged.
+    assert data.MAX_TEMP == 210

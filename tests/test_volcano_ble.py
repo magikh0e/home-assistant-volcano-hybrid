@@ -259,6 +259,53 @@ async def test_connect_without_the_identity_strings() -> None:
     assert client.written == []
 
 
+@pytest.mark.parametrize(
+    "missing",
+    [
+        # Read on its own before the others, to settle the on-state first.
+        CHARACTERISTIC_PRJ1V,
+        # Read inside the gather.
+        CHARACTERISTIC_PRJ2V,
+    ],
+)
+async def test_connect_drops_the_link_when_a_required_read_fails(
+    missing: str,
+) -> None:
+    """
+    A required characteristic that cannot be read takes the connect down.
+
+    Keeping the link would leave the device "connected" with half its state
+    unknown and some notifications never subscribed, and nothing would ever
+    reconnect it to read the rest. Dropping it lets the next poll retry.
+    """
+    values = default_values()
+    del values[missing]
+    client = FakeBleakClient(values, missing={missing})
+    volcano, _, device_updates = await connect(client)
+
+    assert not volcano.is_connected
+    assert volcano.client is None
+    assert client.is_connected is False
+    assert not device_updates
+
+
+async def test_connect_drops_the_link_when_a_read_times_out() -> None:
+    """A read that times out (over a proxy, say) is handled like a failed one."""
+
+    class TimingOutClient(FakeBleakClient):
+        async def read_gatt_char(self, char: FakeCharacteristic) -> bytearray:
+            if char.uuid == CHARACTERISTIC_PRJ3V:
+                raise TimeoutError
+            return await super().read_gatt_char(char)
+
+    client = TimingOutClient(default_values())
+    volcano, _, device_updates = await connect(client)
+
+    assert not volcano.is_connected
+    assert client.is_connected is False
+    assert not device_updates
+
+
 async def test_undecodable_text_falls_back_to_hex() -> None:
     """
     Bytes that are not ASCII are reported as hex instead of raising.

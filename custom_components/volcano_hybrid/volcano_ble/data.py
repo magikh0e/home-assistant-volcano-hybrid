@@ -88,6 +88,10 @@ class DeviceData:
     capabilities: frozenset[str] = frozenset()
     MIN_TEMP = 0
     MAX_TEMP = 230
+    # The highest current temperature accepted as a reading; above it the
+    # device is taken to have no reading. Separate from MAX_TEMP, the top of
+    # the target range, which a portable device's boost can overshoot.
+    MAX_READING = 230
     MIN_DISPLAY_TEMP = 40
 
     def __init__(self, device: VolcanoHybridDataStatusProvider) -> None:
@@ -168,7 +172,7 @@ class DeviceData:
 
     @current_temp.setter
     def current_temp(self, value: int) -> None:
-        if self.MIN_TEMP <= value <= self.MAX_TEMP:
+        if self.MIN_TEMP <= value <= self.MAX_READING:
             self._current_temp = value
         else:
             self._current_temp = None
