@@ -4,7 +4,11 @@ Compare the firmware version recorded in the integration against the vendor's.
 Storz & Bickel's web app asks their server which firmware is current before it
 offers an update. This script asks the same endpoint on a schedule so the
 integration never has to, and reports when the answer stops matching
-`LATEST_KNOWN_FIRMWARE` or when the endpoint itself changes shape.
+`LATEST_KNOWN_FIRMWARE` or when the endpoint itself changes shape. A family
+with no version recorded yet (nobody has verified its firmware) only has its
+published version printed: there is nothing to compare it against, and an
+issue kept open until someone owns the device would only be noise. Its endpoint
+is still checked, so a failure or shape change is reported.
 
 Run by `.github/workflows/firmware-check.yml`. Uses only the standard library
 so the workflow needs no dependency install. Exits non-zero when it has
@@ -187,43 +191,25 @@ def _parse_response(raw: str, family: str = "volcano_hybrid") -> tuple[int, int]
 
 
 def build_outdated_report(
-    family: str, recorded: tuple[int, int] | None, published: tuple[int, int]
+    family: str, recorded: tuple[int, int], published: tuple[int, int]
 ) -> CheckError:
     """Describe a version mismatch and what to do about it."""
     label = FAMILY_LABELS[family]
-    if recorded is None:
-        situation = (
-            f"Storz & Bickel publish **{_format(published)}** for the {label}, "
-            "and the integration records no version for this family yet.\n\n"
-            "Users are not affected: the update entity reports no latest "
-            "version for the device until one is recorded, and the "
-            "integration never contacts this endpoint itself.\n\n"
-        )
-        action = (
-            f"3. Record `{published}` for `{family}` in `{CONSTANT_NAME}` once "
-            "verified, and note the supported firmware in `CHANGELOG.md`.\n"
-        )
-    else:
-        direction = "newer than" if published > recorded else "different from"
-        situation = (
-            f"Storz & Bickel now publish **{_format(published)}** for the "
-            f"{label}, which is {direction} the **{_format(recorded)}** "
-            "recorded in `custom_components/volcano_hybrid/firmware.py`.\n\n"
-            "Users are not affected until this is acted on: the integration "
-            f"reports devices as up to date at {_format(recorded)} and never "
-            "contacts this endpoint itself.\n\n"
-        )
-        action = (
-            f"3. Bump `{family}` in `{CONSTANT_NAME}` to `{published}` and note "
-            "the supported firmware in `CHANGELOG.md`.\n"
-        )
+    direction = "newer than" if published > recorded else "different from"
     body = (
-        f"{situation}To close this out:\n\n"
+        f"Storz & Bickel now publish **{_format(published)}** for the "
+        f"{label}, which is {direction} the **{_format(recorded)}** "
+        "recorded in `custom_components/volcano_hybrid/firmware.py`.\n\n"
+        "Users are not affected until this is acted on: the integration "
+        f"reports devices as up to date at {_format(recorded)} and never "
+        "contacts this endpoint itself.\n\n"
+        "To close this out:\n\n"
         "1. Flash the new firmware with the official web app "
         "(<https://app.storz-bickel.com/>).\n"
         "2. Check the integration still reads and controls the device — in "
         "particular the status registers, since new firmware can move bits.\n"
-        f"{action}"
+        f"3. Bump `{family}` in `{CONSTANT_NAME}` to `{published}` and note "
+        "the supported firmware in `CHANGELOG.md`.\n"
     )
     return CheckError(
         "outdated",
@@ -265,11 +251,19 @@ def write_failures(failures: list[tuple[str, CheckError]]) -> None:
         handle.write(f"failures={json.dumps(entries)}\n")
 
 
-def _check_family(family: str, recorded: tuple[int, int] | None) -> None:
-    """Raise a CheckError when a family's published firmware needs attention."""
+def _check_family(family: str, recorded: tuple[int, int] | None) -> str:
+    """
+    Check one family, returning what to print when nothing needs attention.
+
+    Raises a CheckError when the published firmware or the endpoint does.
+    """
     published = fetch_published_version(family)
+    if recorded is None:
+        # Nothing verified to compare against: informational only.
+        return f"{family}: published {_format(published)}; no version recorded yet"
     if published != recorded:
         raise build_outdated_report(family, recorded, published)
+    return f"{FAMILY_LABELS[family]} firmware matches the vendor endpoint."
 
 
 def main() -> int:
@@ -278,13 +272,13 @@ def main() -> int:
     failures: list[tuple[str, CheckError]] = []
     for family in ENDPOINTS:
         try:
-            _check_family(family, recorded.get(family))
+            message = _check_family(family, recorded.get(family))
         except CheckError as failure:
             print(f"::warning::{failure.title}")
             print(failure.body)
             failures.append((family, failure))
         else:
-            print(f"{FAMILY_LABELS[family]} firmware matches the vendor endpoint.")
+            print(message)
 
     if failures:
         # Every failing family is reported: one family's permanent problem must

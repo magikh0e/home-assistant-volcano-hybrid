@@ -4,8 +4,9 @@ name: Firmware check
 # Volcano Hybrid, Venty or Veazy firmware exists, so the integration does not
 # have to call them at runtime. Opens an issue when a published version moves
 # past the one recorded for its family in
-# custom_components/volcano_hybrid/firmware.py (or none is recorded yet), or
-# when an endpoint starts failing or changes shape. The status label carries
+# custom_components/volcano_hybrid/firmware.py, or when an endpoint starts
+# failing or changes shape. A family with no version recorded yet only has its
+# published version printed in the log. The status label carries
 # the family (for example "venty-outdated"), so issues dedupe per family and
 # per kind of problem.
 #

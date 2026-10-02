@@ -115,15 +115,36 @@ def test_outdated_report_names_both_versions() -> None:
     assert "LATEST_KNOWN_FIRMWARE" in failure.body
 
 
-def test_reports_unknown_recorded_version_as_outdated() -> None:
-    """A family with nothing recorded still raises the published version."""
-    failure = check_firmware.build_outdated_report("venty", None, (1, 9))
+def test_family_without_a_recorded_version_is_informational(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """
+    A family nobody has verified firmware for yet only prints what is published.
 
-    assert failure.status == "outdated"
-    assert "Venty" in failure.title
-    assert "V01.09" in failure.title
-    assert "records no version for this family" in failure.body
-    assert "once verified" in failure.body
+    Reporting it would keep an issue open (and the weekly run red) for as long
+    as nobody owns the device, which says nothing about a firmware release.
+    """
+    output = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output))
+    monkeypatch.setattr(
+        check_firmware,
+        "read_recorded_versions",
+        lambda: {"volcano_hybrid": LATEST, "venty": None, "veazy": None},
+    )
+    monkeypatch.setattr(
+        check_firmware,
+        "fetch_published_version",
+        _fake_fetch({"volcano_hybrid": LATEST, "venty": (1, 9), "veazy": (1, 7)}),
+    )
+
+    assert check_firmware.main() == 0
+    assert "status=ok\n" in output.read_text(encoding="utf-8")
+    printed = capsys.readouterr().out
+    assert "venty: published V01.09; no version recorded yet" in printed
+    assert "veazy: published V01.07; no version recorded yet" in printed
+    assert "::warning::" not in printed
 
 
 def _fake_fetch(
@@ -159,7 +180,12 @@ def test_main_is_quiet_when_every_family_matches(
 def test_main_reports_every_failing_family(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """One family's standing problem must not hide another family's."""
+    """
+    One family's standing problem must not hide another family's.
+
+    A family without a recorded version is still checked for endpoint errors
+    and shape changes: those mean the check itself has stopped working.
+    """
     output = tmp_path / "output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
     monkeypatch.setattr(
@@ -172,8 +198,8 @@ def test_main_reports_every_failing_family(
         "fetch_published_version",
         _fake_fetch(
             {
-                "volcano_hybrid": LATEST,
-                "venty": (1, 9),
+                "volcano_hybrid": (LATEST[0], LATEST[1] + 1),
+                "venty": check_firmware._schema_change("[]", "venty"),  # noqa: SLF001
                 "veazy": check_firmware._endpoint_error("down", "body"),  # noqa: SLF001
             }
         ),
@@ -185,11 +211,12 @@ def test_main_reports_every_failing_family(
     assert lines[0].startswith("failures=")
     entries = json.loads(lines[0].removeprefix("failures="))
     assert [entry["status"] for entry in entries] == [
-        "venty-outdated",
+        "volcano_hybrid-outdated",
+        "venty-schema-change",
         "veazy-endpoint-error",
     ]
-    assert entries[1]["title"] == "down"
-    assert entries[1]["body"] == "body"
+    assert entries[2]["title"] == "down"
+    assert entries[2]["body"] == "body"
 
 
 def test_rejects_a_response_that_is_not_text() -> None:
