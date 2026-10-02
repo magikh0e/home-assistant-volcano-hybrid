@@ -135,7 +135,7 @@ def fetch_published_version(family: str) -> tuple[int, int]:
         # attacker controlled; S310 is about dynamic URLs.
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
             status = response.status
-            raw = response.read().decode("utf-8")
+            payload = response.read()
     except (urllib.error.URLError, TimeoutError, OSError) as err:
         title = f"{label} firmware endpoint is unreachable"
         body = f"`POST {endpoint}` failed: `{err}`."
@@ -145,6 +145,11 @@ def fetch_published_version(family: str) -> tuple[int, int]:
         title = f"{label} firmware endpoint returned an error"
         body = f"`POST {endpoint}` responded with HTTP {status}."
         raise _endpoint_error(title, body)
+    try:
+        raw = payload.decode("utf-8")
+    except UnicodeDecodeError as err:
+        # Not text at all: report it as a shape change, quoting what we can.
+        raise _schema_change(payload.decode("utf-8", "replace"), family) from err
     return _parse_response(raw, family)
 
 
@@ -238,6 +243,28 @@ def write_outputs(status: str, title: str, body: str) -> None:
         handle.write(f"body<<FIRMWARE_CHECK_EOF\n{body}\nFIRMWARE_CHECK_EOF\n")
 
 
+def write_failures(failures: list[tuple[str, CheckError]]) -> None:
+    """
+    Publish every failing family to the workflow, when running inside one.
+
+    One JSON array on a single line (json escapes the newlines in bodies), each
+    entry holding the `<family>-<status>` label, title and body for one issue.
+    """
+    output = os.environ.get("GITHUB_OUTPUT")
+    if not output:
+        return
+    entries = [
+        {
+            "status": f"{family}-{failure.status}",
+            "title": failure.title,
+            "body": failure.body,
+        }
+        for family, failure in failures
+    ]
+    with Path(output).open("a", encoding="utf-8") as handle:
+        handle.write(f"failures={json.dumps(entries)}\n")
+
+
 def _check_family(family: str, recorded: tuple[int, int] | None) -> None:
     """Raise a CheckError when a family's published firmware needs attention."""
     published = fetch_published_version(family)
@@ -260,10 +287,9 @@ def main() -> int:
             print(f"{FAMILY_LABELS[family]} firmware matches the vendor endpoint.")
 
     if failures:
-        # One issue per run. The status carries the family, and the workflow
-        # dedupes on it, so each family and kind of problem is raised in turn.
-        family, failure = failures[0]
-        write_outputs(f"{family}-{failure.status}", failure.title, failure.body)
+        # Every failing family is reported: one family's permanent problem must
+        # not hide another's. The workflow dedupes per `<family>-<status>`.
+        write_failures(failures)
         return 1
 
     write_outputs("ok", "", "")

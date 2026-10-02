@@ -52,45 +52,49 @@ jobs:
         run: python3 scripts/check_firmware.py
 
       - name: Open an issue
-        # Skipped when the script itself crashed without reporting a status;
+        # Skipped when the script itself crashed without reporting failures;
         # the gate below still fails the run in that case. Also skipped on pull
         # requests, where the token is read-only — the failed run is the signal
         # there, and the scheduled run files the issue.
         if: >-
           github.event_name != 'pull_request'
           && steps.check.outcome == 'failure'
-          && steps.check.outputs.status != ''
+          && steps.check.outputs.failures != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Passed as environment variables rather than interpolated into the
-          # script: the body can quote a response body from outside this repo.
-          STATUS: ${{ steps.check.outputs.status }}
-          TITLE: ${{ steps.check.outputs.title }}
-          BODY: ${{ steps.check.outputs.body }}
+          # Passed as an environment variable rather than interpolated into the
+          # script: the bodies can quote a response body from outside this repo.
+          # A JSON array with one {status, title, body} entry per failing family.
+          FAILURES: ${{ steps.check.outputs.failures }}
         run: |
           set -euo pipefail
-          # Deduplicated per kind of problem, not just per check: an open
-          # "endpoint unreachable" issue must not silence a firmware release.
-          # While an issue of the same kind is open the weekly run files
-          # nothing and only goes red; closing one without fixing the cause
-          # lets the next run raise it again.
           gh label create firmware-watch \
             --description "Raised by the scheduled firmware endpoint check" \
             --color FBCA04 --force
-          gh label create "firmware-watch:${STATUS}" \
-            --description "Firmware check result: ${STATUS}" \
-            --color FBCA04 --force
-          existing=$(gh issue list --label firmware-watch \
-            --label "firmware-watch:${STATUS}" --state open \
-            --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            echo "Issue #${existing} already tracks a '${STATUS}' result; not filing a duplicate."
-            exit 0
-          fi
-          printf '%s\n' "$BODY" > "${RUNNER_TEMP}/firmware-issue.md"
-          gh issue create --title "$TITLE" \
-            --body-file "${RUNNER_TEMP}/firmware-issue.md" \
-            --label firmware-watch --label "firmware-watch:${STATUS}"
+          # Every failing family gets its own issue, so one family's standing
+          # problem cannot hide another's. Each is deduplicated per family and
+          # kind of problem, not just per check: an open "venty-endpoint-error"
+          # issue must not silence a "veazy-outdated" one. While an issue of the
+          # same kind is open the weekly run files nothing and only goes red;
+          # closing one without fixing the cause lets the next run raise it again.
+          jq -c '.[]' <<< "$FAILURES" | while IFS= read -r failure; do
+            STATUS=$(jq -r '.status' <<< "$failure")
+            TITLE=$(jq -r '.title' <<< "$failure")
+            jq -r '.body' <<< "$failure" > "${RUNNER_TEMP}/firmware-issue.md"
+            gh label create "firmware-watch:${STATUS}" \
+              --description "Firmware check result: ${STATUS}" \
+              --color FBCA04 --force
+            existing=$(gh issue list --label firmware-watch \
+              --label "firmware-watch:${STATUS}" --state open \
+              --json number --jq '.[0].number // empty')
+            if [ -n "$existing" ]; then
+              echo "Issue #${existing} already tracks a '${STATUS}' result; not filing a duplicate."
+              continue
+            fi
+            gh issue create --title "$TITLE" \
+              --body-file "${RUNNER_TEMP}/firmware-issue.md" \
+              --label firmware-watch --label "firmware-watch:${STATUS}"
+          done
 
       - name: Fail the run when the check reported a problem
         if: steps.check.outcome == 'failure'

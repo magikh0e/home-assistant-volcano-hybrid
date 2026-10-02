@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -155,10 +156,10 @@ def test_main_is_quiet_when_every_family_matches(
     assert "status=ok\n" in output.read_text(encoding="utf-8")
 
 
-def test_main_labels_the_first_failure_with_its_family(
+def test_main_reports_every_failing_family(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The status carries the family so issues dedupe per family and kind."""
+    """One family's standing problem must not hide another family's."""
     output = tmp_path / "output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
     monkeypatch.setattr(
@@ -179,9 +180,31 @@ def test_main_labels_the_first_failure_with_its_family(
     )
 
     assert check_firmware.main() == 1
-    written = output.read_text(encoding="utf-8")
-    assert "status=venty-outdated\n" in written
-    assert "veazy" not in written.split("body<<")[0]
+    lines = output.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("failures=")
+    entries = json.loads(lines[0].removeprefix("failures="))
+    assert [entry["status"] for entry in entries] == [
+        "venty-outdated",
+        "veazy-endpoint-error",
+    ]
+    assert entries[1]["title"] == "down"
+    assert entries[1]["body"] == "body"
+
+
+def test_rejects_a_response_that_is_not_text() -> None:
+    """Undecodable bytes are a reported schema change, not a crash."""
+    response = MagicMock()
+    response.status = 200
+    response.read.return_value = b"\xff\xfe\x00"
+    response.__enter__.return_value = response
+    with (
+        patch.object(check_firmware.urllib.request, "urlopen", return_value=response),
+        pytest.raises(check_firmware.CheckError) as err,
+    ):
+        check_firmware.fetch_published_version("venty")
+    assert err.value.status == "schema-change"
+    assert "Venty" in err.value.title
 
 
 def test_writes_workflow_outputs(
