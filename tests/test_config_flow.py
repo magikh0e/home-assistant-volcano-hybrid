@@ -52,7 +52,8 @@ def _volcano_entry(
         unique_id=address,
         data={CONF_ADDRESS: address, CONF_MODEL: "volcano_hybrid"},
         title=name,
-        version=2,
+        version=1,
+        minor_version=2,
     )
 
 

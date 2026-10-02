@@ -27,7 +27,8 @@ This file starts at 1.0.4. Releases up to and including 1.0.3 are only on the
 ### Changed
 
 - Config entries record the device family (`model`); existing entries are
-  migrated as Volcano Hybrids automatically.
+  migrated as Volcano Hybrids automatically, and rolling back to 1.0.5 still
+  loads them.
 
 ### Fixed
 

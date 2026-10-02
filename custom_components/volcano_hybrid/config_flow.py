@@ -44,7 +44,11 @@ _LOGGER = logging.getLogger(__name__)
 class VolcanoHybridConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Volcano Hybrid."""
 
-    VERSION = 2
+    # Recording the family was a minor bump on purpose: Home Assistant refuses
+    # an entry whose major version is above its handler's, so a major bump
+    # would leave 1.0.5 unable to load the entry after a rollback.
+    VERSION = 1
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""

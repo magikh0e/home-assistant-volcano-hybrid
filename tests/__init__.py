@@ -99,7 +99,8 @@ def make_config_entry(
         unique_id=address,
         data={CONF_ADDRESS: address, CONF_MODEL: family.value},
         title=FAMILY_NAMES[family],
-        version=2,
+        version=1,
+        minor_version=2,
     )
 
 

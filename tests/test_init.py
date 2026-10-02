@@ -11,7 +11,10 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.volcano_hybrid import async_remove_config_entry_device
+from custom_components.volcano_hybrid import (
+    async_migrate_entry,
+    async_remove_config_entry_device,
+)
 from custom_components.volcano_hybrid.const import CONF_MODEL, DOMAIN
 
 from . import (
@@ -195,11 +198,36 @@ async def test_migrate_v1_entry_marks_it_a_volcano(
         data={CONF_ADDRESS: VOLCANO_ADDRESS},
         title=VOLCANO_NAME,
         version=1,
+        minor_version=1,
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert entry.version == 2
+    # A minor version, so that 1.0.5 still loads the entry after a rollback.
+    assert entry.version == 1
+    assert entry.minor_version == 2
     assert entry.data == {CONF_ADDRESS: VOLCANO_ADDRESS, CONF_MODEL: "volcano_hybrid"}
     assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_entry_from_a_newer_version_is_not_migrated(
+    hass: HomeAssistant, mock_volcano: FakeVolcanoBLE, enable_bluetooth: None
+) -> None:
+    """An entry a later major version wrote is refused rather than misread."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=VOLCANO_ADDRESS,
+        data={CONF_ADDRESS: VOLCANO_ADDRESS, CONF_MODEL: "volcano_hybrid"},
+        title=VOLCANO_NAME,
+        version=2,
+    )
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.MIGRATION_ERROR
+    assert entry.version == 2
+    # Home Assistant refuses it before asking; the migration refuses it too.
+    assert not await async_migrate_entry(hass, entry)
+    assert entry.version == 2

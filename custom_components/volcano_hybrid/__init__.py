@@ -56,13 +56,17 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """
     Migrate old entries.
 
-    Version 1 entries predate family support and were only ever Volcano Hybrids.
+    Entries below minor version 2 predate family support and were only ever Volcano
+    Hybrids. A major version above 1 comes from a newer release this one cannot
+    read (a downgrade), and is refused.
     """
-    if entry.version == 1:
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:  # noqa: PLR2004
         hass.config_entries.async_update_entry(
             entry,
             data={**entry.data, CONF_MODEL: DeviceFamily.VOLCANO_HYBRID.value},
-            version=2,
+            minor_version=2,
         )
     return True
 
