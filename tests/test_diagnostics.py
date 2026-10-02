@@ -122,9 +122,7 @@ async def test_diagnostics_for_a_venty(
     assert "fan" not in diagnostics["state"]
 
 
-@pytest.mark.parametrize(
-    "device_family", [DeviceFamily.CRAFTY], indirect=True, ids=str
-)
+@pytest.mark.parametrize("device_family", [DeviceFamily.CRAFTY], indirect=True, ids=str)
 async def test_diagnostics_for_a_crafty(
     hass: HomeAssistant, init_integration: MockConfigEntry, mock_volcano: FakeDevice
 ) -> None:
