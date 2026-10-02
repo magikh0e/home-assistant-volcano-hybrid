@@ -11,8 +11,13 @@ rules:
   appropriate-polling:
     status: done
     comment: >-
-      The device pushes updates over BLE notifications; the 10 second
-      coordinator interval is only a reconnect/fallback poll.
+      The Volcano Hybrid and Crafty push updates over BLE notifications; the
+      10 second coordinator interval is only a reconnect/fallback poll. The
+      Venty and Veazy do not notify on state changes, so while connected a
+      task asks for their status once a second (their own app polls every
+      500 ms; the spec allows 500 ms to 2 s). That is what makes a target or
+      heater change on the device visible promptly; the task stops on
+      disconnect.
   brands: done
   common-modules: done
   config-flow: done
@@ -74,7 +79,7 @@ rules:
   docs-use-cases: done
   dynamic-devices:
     status: exempt
-    comment: A config entry represents exactly one Volcano Hybrid device.
+    comment: A config entry represents exactly one device.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default: done

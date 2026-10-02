@@ -15,6 +15,20 @@ This file starts at 1.0.4. Releases up to and including 1.0.3 are only on the
 
 ## [Unreleased]
 
+### Added
+
+- Support for the Crafty and Crafty+ (experimental — decoded from the vendor
+  web app and untested on hardware; see `CRAFTY_BLE_SPEC.md`).
+- Support for the Venty and Veazy (experimental — untested on hardware; see
+  `VENTY_BLE_SPEC.md`). These devices are polled once a second while connected.
+- The integration is now titled "Storz & Bickel"; the domain and every
+  existing entity id are unchanged.
+
+### Changed
+
+- Config entries record the device family (`model`); existing entries are
+  migrated as Volcano Hybrids automatically.
+
 ## [1.0.5] - 2026-08-19
 
 ### Added
