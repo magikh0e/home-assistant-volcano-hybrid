@@ -29,20 +29,24 @@ This file starts at 1.0.4. Releases up to and including 1.0.3 are only on the
 - Config entries record the device family (`model`); existing entries are
   migrated as Volcano Hybrids automatically, and rolling back to 1.0.5 still
   loads them.
+- The weekly firmware check tracks each family separately, so its issues are
+  now labelled per family (`firmware-watch:volcano_hybrid-outdated`,
+  `firmware-watch:venty-endpoint-error`, …) rather than per kind of problem
+  alone.
 
 ### Fixed
 
 - A device whose first read after connecting failed stayed connected with half
   its state unknown, and nothing ever reconnected it to read the rest. Such a
   connect is now dropped and retried.
+- A Bluetooth link that dropped while a connect was still reading the device,
+  just as a command waiting to be resent went out, wedged the connection: the
+  device never reconnected until Home Assistant restarted.
 - Unloading or reloading the integration could leave a Bluetooth connection
   behind: a connect already under way kept running, and an update after unload
   could still reconnect. Both now stop with the integration.
 - **Current on time** could go negative after the auto-off time was lowered
   mid-session. It now shows as unknown until the vaporizer next switches on.
-- The Crafty, Venty and Veazy showed a current temperature above 210 °C (which
-  boost and superboost can reach) as unknown. Readings up to 230 °C are now
-  shown.
 
 ## [1.0.5] - 2026-08-19
 

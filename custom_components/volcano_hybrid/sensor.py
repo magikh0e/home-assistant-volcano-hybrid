@@ -318,8 +318,9 @@ class VolcanoSensorEntity(VolcanoHybridEntity, SensorEntity):
             self.coordinator.data.get(self.entity_description.value_key or self._key)
         )
         if (attributes_fn := self.entity_description.attributes_fn) is not None:
-            # Only the Volcano is built so far, so its data is what the
-            # coordinator holds.
+            # Only the last-fault sensor, built from the Volcano's fault log
+            # (hist1/hist2), sets attributes_fn, and only a Volcano Hybrid
+            # gets it, so the data here is a Volcano's.
             self._attr_extra_state_attributes = attributes_fn(
                 cast("VolcanoHybridData", self.coordinator.data)
             )
