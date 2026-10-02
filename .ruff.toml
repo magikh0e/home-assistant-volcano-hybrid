@@ -2,6 +2,9 @@
 
 target-version = "py314"
 
+# Design documents under docs/ contain illustrative code blocks, not project code
+extend-exclude = ["docs"]
+
 [lint]
 select = [
     "ALL",

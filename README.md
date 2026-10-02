@@ -143,8 +143,9 @@ This will however not protect you from losing control when bluetooth fails, so _
 
 ## Connecting
 
-By default this integration connects to the Volcano as soon as it sees one (after it has been set up).
-This means updates from the device trigger updates in Home Assistant instantly, but it also means no other Bluetooth client can control the Volcano while Home Assistant holds the connection (the Volcano stops advertising once connected).
+By default this integration connects to a device as soon as it sees one (after it has been set up).
+This means updates from the device trigger updates in Home Assistant instantly, but it also means no other Bluetooth client can control the device while Home Assistant holds the connection (the Volcano stops advertising once connected).
+The portable devices sleep when idle, so they are connected when they wake up; see [Sleeping devices](#sleeping-devices).
 
 You can control this behavior:
 
@@ -167,7 +168,8 @@ The connect timing is configurable via the integration's options (**Settings** â
 
 ### The device is not discovered
 
-- Make sure the Volcano is plugged in; its Bluetooth stays available even when the heater and fan are off.
+- Volcano: make sure it is plugged in; its Bluetooth stays available even when the heater and fan are off.
+- Crafty, Venty and Veazy: wake the device (switch it on or press a button) so it advertises; they switch Bluetooth off when idle, see [Sleeping devices](#sleeping-devices).
 - Make sure a [Bluetooth adapter or ESPHome Bluetooth proxy](https://www.home-assistant.io/integrations/bluetooth/) is set up in Home Assistant and within range of the device.
 - The official Storz & Bickel app (or any other Bluetooth client) may be holding the connection. Close the app and try again.
 
@@ -186,7 +188,7 @@ This integration follows standard integration removal:
 1. Go to **Settings** â†’ **Devices & services** and select the **Storz & Bickel** integration.
 2. Open the three-dot menu of the config entry and select **Delete**.
 
-After removal the Volcano keeps working standalone; no settings on the device itself need to be reset. If you installed through HACS you can then also remove the repository from HACS.
+After removal the device keeps working standalone; no settings on the device itself need to be reset. If you installed through HACS you can then also remove the repository from HACS.
 
 # Example usage
 
