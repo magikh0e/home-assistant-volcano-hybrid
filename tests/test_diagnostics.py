@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -11,6 +12,7 @@ from custom_components.volcano_hybrid.diagnostics import (
     async_get_config_entry_diagnostics,
 )
 from custom_components.volcano_hybrid.volcano_ble import DeviceFamily
+from custom_components.volcano_hybrid.volcano_ble.crafty_data import CraftyData
 
 from . import FakeDevice, FakeVolcanoBLE
 
@@ -118,3 +120,50 @@ async def test_diagnostics_for_a_venty(
     assert diagnostics["state"]["heater_mode_name"] is None
     assert "registers" not in diagnostics
     assert "fan" not in diagnostics["state"]
+
+
+@pytest.mark.parametrize(
+    "device_family", [DeviceFamily.CRAFTY], indirect=True, ids=str
+)
+async def test_diagnostics_for_a_crafty(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_volcano: FakeDevice
+) -> None:
+    """A Crafty dump carries its raw status words, rendered like the Volcano's."""
+    data = mock_volcano.data
+    assert isinstance(data, CraftyData)
+    data.prj1 = 0x0010
+    data.prj2 = 0x0400
+    data.system_status = 0x0003
+    data.battery_status1 = 0x1234
+    data.battery_status2 = None
+    data.battery = 60
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, init_integration)
+
+    assert diagnostics["registers"] == {
+        "prj1": "0x0010",
+        "prj2": "0x0400",
+        "system_status": "0x0003",
+        "battery_status1": "0x1234",
+        "battery_status2": None,
+    }
+    assert diagnostics["state"]["battery"] == 60
+    # Reported once, under registers.
+    for name in diagnostics["registers"]:
+        assert name not in diagnostics["state"]
+    # The download Home Assistant offers is this dict as JSON.
+    json.dumps(diagnostics)
+
+
+@pytest.mark.parametrize(
+    "device_family",
+    [DeviceFamily.VOLCANO_HYBRID, DeviceFamily.VENTY, DeviceFamily.VEAZY],
+    indirect=True,
+    ids=str,
+)
+async def test_diagnostics_are_json(
+    hass: HomeAssistant, init_integration: MockConfigEntry
+) -> None:
+    """Every family's dump serialises as the JSON download it becomes."""
+    diagnostics = await async_get_config_entry_diagnostics(hass, init_integration)
+    json.dumps(diagnostics)

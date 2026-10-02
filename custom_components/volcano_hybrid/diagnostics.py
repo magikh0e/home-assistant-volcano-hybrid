@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from .const import format_register
 from .coordinator import VolcanoHybridConfigEntry
 from .volcano_ble import VolcanoHybridData
+from .volcano_ble.crafty_data import CraftyData
 
 TO_REDACT = {CONF_ADDRESS, "connected_addr", "serial_number"}
 
@@ -37,6 +38,9 @@ _NOT_STATE = {
     "prj5",
     "hist1",
     "hist2",
+    "system_status",
+    "battery_status1",
+    "battery_status2",
 }
 _PLAIN = (str, int, float, bool, type(None))
 
@@ -99,5 +103,15 @@ async def async_get_config_entry_diagnostics(
             "prj5": format_register(data.prj5),
             "hist1": data.hist1,
             "hist2": data.hist2,
+        }
+    elif isinstance(data, CraftyData):
+        # The Crafty's raw status words (CRAFTY_BLE_SPEC.md), for the same
+        # reason: they hold the bits the integration does not decode.
+        diagnostics["registers"] = {
+            "prj1": format_register(data.prj1),
+            "prj2": format_register(data.prj2),
+            "system_status": format_register(data.system_status),
+            "battery_status1": format_register(data.battery_status1),
+            "battery_status2": format_register(data.battery_status2),
         }
     return async_redact_data(diagnostics, TO_REDACT)
