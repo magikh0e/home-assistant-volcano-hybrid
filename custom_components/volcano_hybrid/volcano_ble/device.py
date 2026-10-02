@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import inspect
 import logging
 from typing import TYPE_CHECKING, ClassVar
@@ -23,6 +24,20 @@ if TYPE_CHECKING:
     from habluetooth import BluetoothServiceInfoBleak
 
 _LOGGER = logging.getLogger(__name__)
+
+# The connect attempt the current code runs inside, if any. The connect holds
+# the (non-reentrant) connect lock while it reads the initial state, and that
+# read can write to the device: the Qvap init frames, or a pending write the
+# Volcano or Crafty replays from a read callback. If the link drops meanwhile,
+# such a write must not try to connect again, which would wait for the lock
+# its own connect holds. A context variable rather than the task identity,
+# because the initial read runs part of itself in asyncio.gather child tasks,
+# which inherit the context but are other tasks. It holds a token per attempt
+# rather than a flag, so a task started during the connect (the Qvap poll
+# loop, say) that inherits the context is only exempt while that attempt runs.
+_CONNECT_ATTEMPT: contextvars.ContextVar[object | None] = contextvars.ContextVar(
+    "storz_bickel_connect_attempt", default=None
+)
 
 
 def _decode_ascii(data: bytearray) -> str:
@@ -69,6 +84,8 @@ class StorzBickelDevice(VolcanoHybridDataStatusProvider):
         # leaving every client but the last orphaned (never disconnected) and
         # leaking connection slots until Home Assistant restarts.
         self._connect_lock = asyncio.Lock()
+        # The token of the connect attempt holding the lock (_CONNECT_ATTEMPT).
+        self._connect_attempt: object | None = None
         self.client: BleakClient | None = None
         self.device = device
         self.data: DeviceData = self.data_class(self)
@@ -145,8 +162,21 @@ class StorzBickelDevice(VolcanoHybridDataStatusProvider):
             self._determine_connected_device()
             return True
 
+        # Inside this device's own connect the link has dropped since it was
+        # established: report that rather than wait for the lock it holds.
+        attempt = _CONNECT_ATTEMPT.get()
+        if attempt is not None and attempt is self._connect_attempt:
+            return False
+
         async with self._connect_lock:
-            return await self._async_connect(self.device)
+            attempt = object()
+            self._connect_attempt = attempt
+            token = _CONNECT_ATTEMPT.set(attempt)
+            try:
+                return await self._async_connect(self.device)
+            finally:
+                _CONNECT_ATTEMPT.reset(token)
+                self._connect_attempt = None
 
     async def _async_connect(self, device: BLEDevice) -> bool:
         """Connect and read the initial state, with the connect lock held."""

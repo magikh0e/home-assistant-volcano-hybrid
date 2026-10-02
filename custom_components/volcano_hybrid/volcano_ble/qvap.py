@@ -80,7 +80,8 @@ class QvapDevice(StorzBickelDevice):
         _LOGGER.debug("Initial %s frames read", self.family)
         self._after_data_updated()
         self._after_device_updated()
-        if self.data.bootloader_mode is False:
+        # The link can drop partway through the init; nothing to poll then.
+        if self.data.bootloader_mode is False and self.is_connected:
             self._start_polling()
 
     async def _async_init_sequence(self, client: BleakClient) -> bool:

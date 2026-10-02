@@ -556,3 +556,42 @@ async def test_pending_target_write_is_replayed_while_on() -> None:
     assert simulated.sent == [f.build_target_write(200)]
     assert device.data.set_temp == 200
     assert not device.data.is_assumed
+
+
+async def test_link_drop_during_the_init_sequence_does_not_deadlock() -> None:
+    """
+    A link that drops while the connect sends its init frames ends the connect.
+
+    Regression test: the init frames go through _async_write_frame, which
+    makes sure the client is connected first. With the link gone that meant a
+    connect attempt, which waited for the connect lock the running connect
+    already held, so the connect never returned and nothing ever reconnected.
+    """
+    first, second = _client(), _client()
+    simulated = SimulatedQvap(first)
+    SimulatedQvap(second)
+    device = VentyDevice(lambda: None, lambda: None)
+    firmware_reply = simulated._firmware_reply  # noqa: SLF001
+
+    def _reply_then_drop(frame: bytes) -> bytes:
+        # The firmware reply arrives, then the link drops.
+        first.is_connected = False
+        device._disconnected(first)  # type: ignore[arg-type]  # noqa: SLF001
+        return firmware_reply(frame)
+
+    simulated._firmware_reply = _reply_then_drop  # type: ignore[method-assign]  # noqa: SLF001
+    ble_device = make_ble_device(name="S&B VY123456")
+    with (
+        patch(ESTABLISH, AsyncMock(side_effect=[first, second])),
+        patch.object(QvapDevice, "_start_polling"),
+    ):
+        async with asyncio.timeout(5):
+            await device.async_manual_update(ble_device)
+        assert not device.is_connected
+        assert not device._connect_lock.locked()  # noqa: SLF001
+
+        # The next update connects again.
+        async with asyncio.timeout(5):
+            await device.async_manual_update(ble_device)
+    assert device.is_connected
+    assert device.client is second

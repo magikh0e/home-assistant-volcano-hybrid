@@ -693,3 +693,46 @@ async def test_explicit_disconnect(explicit_disconnect: bool) -> None:
         client.is_connected = False
 
     assert not volcano.is_connected
+
+
+class DroppingClient(FakeBleakClient):
+    """A client whose link drops while the auto-off time is read."""
+
+    def __init__(self, values: dict[str, bytes]) -> None:
+        """Initialize, with nobody to tell about the drop yet."""
+        super().__init__(values)
+        self.on_drop: list[Any] = []
+
+    async def read_gatt_char(self, char: FakeCharacteristic) -> bytearray:
+        """Serve the value, dropping the link on the auto-off time."""
+        value = await super().read_gatt_char(char)
+        if char.uuid == CHARACTERISTIC_CURRENT_AUTO_OFF_TIME and self.is_connected:
+            self.is_connected = False
+            for callback in self.on_drop:
+                callback(self)
+        return value
+
+
+async def test_link_drop_during_connect_replay_does_not_deadlock() -> None:
+    """
+    A pending write replayed during a connect whose link drops does not hang.
+
+    Regression test: the auto-off-time callback replays pending writes while
+    the connect holds the connection lock. With the link already gone, the
+    replayed write tried to connect again and waited for that same lock.
+    """
+    first = DroppingClient(default_values())  # device on, set_temp 190
+    second = FakeBleakClient(default_values())
+    volcano = VolcanoBLE(lambda: None, lambda: None)
+    first.on_drop.append(volcano._disconnected)  # noqa: SLF001
+    volcano.data.set_temp_write = 200
+
+    with patch(ESTABLISH_CONNECTION, AsyncMock(side_effect=[first, second])):
+        async with asyncio.timeout(5):
+            await volcano.async_manual_update(make_ble_device())
+
+    assert not volcano._connect_lock.locked()  # noqa: SLF001
+    # The update reconnected afterwards and delivered the write it held.
+    assert volcano.client is second
+    assert volcano.is_connected
+    assert (CHARACTERISTIC_SET_TEMP, (2000).to_bytes(2, "little")) in second.written
