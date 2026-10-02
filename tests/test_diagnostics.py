@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from homeassistant.components.diagnostics import REDACTED
 
 from custom_components.volcano_hybrid.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from custom_components.volcano_hybrid.volcano_ble import DeviceFamily
 
-from . import FakeVolcanoBLE
+from . import FakeDevice, FakeVolcanoBLE
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -102,3 +104,17 @@ async def test_diagnostics_registers_before_connect(
         "hist1": None,
         "hist2": None,
     }
+
+
+@pytest.mark.parametrize("device_family", [DeviceFamily.VENTY], indirect=True, ids=str)
+async def test_diagnostics_for_a_venty(
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_volcano: FakeDevice
+) -> None:
+    """Every field the family holds is dumped; the Volcano-only keys are absent."""
+    mock_volcano.data.battery = 85
+    diagnostics = await async_get_config_entry_diagnostics(hass, init_integration)
+    assert diagnostics["entry_data"]["model"] == "venty"
+    assert diagnostics["state"]["battery"] == 85
+    assert diagnostics["state"]["heater_mode_name"] is None
+    assert "registers" not in diagnostics
+    assert "fan" not in diagnostics["state"]

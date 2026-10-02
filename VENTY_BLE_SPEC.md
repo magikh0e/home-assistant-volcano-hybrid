@@ -39,7 +39,7 @@ goes through a single characteristic (CONFIRMED):
 |---|---|
 | Service | `00000000-5354-4f52-5a26-4249434b454c` (the same `STORZ&BICKEL` ASCII base as the Volcano) |
 | Control characteristic | `00000001-5354-4f52-5a26-4249434b454c` — write + notify |
-| Generic Access → Device Name | `00002a00-0000-1000-8000-00805f9b34fb`, read once for the serial (CONFIRMED; the app tolerates it being absent) |
+| Generic Access → Device Name | service `00001800-0000-1000-8000-00805f9b34fb` (standard Bluetooth SIG), characteristic `00002a00-0000-1000-8000-00805f9b34fb`, read once for the serial (CONFIRMED; the app tolerates it being absent) |
 
 The client **writes a frame** whose first byte is a command id; the device **notifies a frame
 back** with the same command id in byte 0. Frames are 20 bytes for command `0x01` and most
