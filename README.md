@@ -202,6 +202,7 @@ After removal the device keeps working standalone; no settings on the device its
 - [Script for a hands-free whip session](#hands-free-whip-session)
 - [Script for party rounds](#party-rounds)
 - [Ready-made ladders for the session scripts](#ready-made-ladders)
+- [Ready-made whip sessions](#ready-made-whip-sessions)
 
 
 ## Complete dashboard using only stock cards
@@ -782,8 +783,9 @@ fields:
     default: 3
     selector:
       number:
-        min: 1
+        min: 0.5
         max: 30
+        step: 0.5
         unit_of_measurement: min
 sequence:
   - variables:
@@ -822,7 +824,7 @@ sequence:
               error: true
         - alias: Hold the rung
           delay:
-            minutes: "{{ hold_minutes | default(3) | int }}"
+            seconds: "{{ (hold_minutes | default(3) | float * 60) | int }}"
   - action: climate.turn_off
     target:
       entity_id: "{{ volcano_entity }}"
@@ -956,6 +958,22 @@ Paste one of these into the `temperatures` field of the bag or whip session (all
 | Express | `[185, 205, 225]` | Three big steps |
 | Low & slow | `[180, 190, 200]` | Gentle; try a 5-minute hold for whip use |
 | Hot finisher | `[215, 220, 225, 230]` | The last of a used load |
+
+### Ready-made whip sessions
+
+Values for the whip session's `temperatures` and `hold_minutes` fields. A single temperature is just a timed hold that turns the Volcano off at the end.
+
+| Session | Temperatures | Hold time | About |
+|---|---|---|---|
+| Gentle hold | `[185]` | 20 min | 20 min |
+| Classic hold | `[195]` | 15 min | 15 min |
+| Hot hold | `[205]` | 10 min | 10 min; the vapor is warm, a waterpipe helps |
+| Two-stage | `[190, 205]` | 8 min | 16 min: flavor first, then strength |
+| Ramp | `[175, 180, 185, 190, 195, 200, 205, 210, 215]` | 1.5 min | 14 min, each pull a little warmer |
+| Long session | `[185, 195, 205, 215]` | 6 min | 24 min |
+| Vapesuvius | `[179, 185, 191, 199, 205, 211, 217, 230]` | 3 min | 24 min, the full temp guide |
+
+Times are hold time only; add a little for heating between rungs.
 
 Each script runs in `single` mode, so starting it again while it's running does nothing. If you stop a script part-way, it doesn't clean up after itself: turn the fan and heater off yourself.
 
