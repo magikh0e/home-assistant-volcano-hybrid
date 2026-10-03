@@ -650,6 +650,8 @@ A script that runs a whole temperature ladder on its own, one bag per rung:
 
 Pick your Volcano in the **Volcano** field (the thermostat entity is named after the device, so it isn't always `climate.volcano_hybrid`). Everything else is a script field too, so the same script runs any ladder (see [Ready-made ladders](#ready-made-ladders)). Run it from the script's page to fill the fields in, or call it from a dashboard button or an automation with `data:`. If a rung isn't reached within 15 minutes the script turns the Volcano off and stops with an error.
 
+Temperatures are always in °C, even if Home Assistant shows °F: the script converts them for you. A rung counts as reached within 1 °C, since the Volcano often settles a degree under its target.
+
 List the temperatures low to high: a rung the chamber is already above is treated as reached, so stepping down doesn't wait for it to cool.
 
 ```yaml
@@ -695,21 +697,29 @@ fields:
 sequence:
   - variables:
       volcano_entity: "{{ volcano | default('climate.volcano_hybrid') }}"
+      # Temperatures here are °C. HA shows climate temperatures in your unit
+      # system, so on °F convert (the Volcano's 230 °C max shows as 446 °F).
+      fahrenheit: "{{ state_attr(volcano_entity, 'max_temp') | float(0) > 300 }}"
   - action: climate.turn_on
     target:
       entity_id: "{{ volcano_entity }}"
   - repeat:
       for_each: "{{ temperatures | default([179, 185, 191, 199, 205, 211, 217, 230]) }}"
       sequence:
+        - variables:
+            rung: >-
+              {{ ((repeat.item | float * 9 / 5 + 32) | round(1)) if fahrenheit
+              else repeat.item | float }}
+            margin: "{{ 1.8 if fahrenheit else 1 }}"
         - action: climate.set_temperature
           data:
-            temperature: "{{ repeat.item }}"
+            temperature: "{{ rung }}"
           target:
             entity_id: "{{ volcano_entity }}"
         - alias: Wait for the device to reach the rung
           wait_template: >-
             {{ state_attr(volcano_entity, 'current_temperature') | float(0)
-            >= repeat.item | float }}
+            >= rung | float - margin | float }}
           timeout: "00:15:00"
           continue_on_timeout: true
         - if: "{{ not wait.completed }}"
@@ -778,21 +788,29 @@ fields:
 sequence:
   - variables:
       volcano_entity: "{{ volcano | default('climate.volcano_hybrid') }}"
+      # Temperatures here are °C. HA shows climate temperatures in your unit
+      # system, so on °F convert (the Volcano's 230 °C max shows as 446 °F).
+      fahrenheit: "{{ state_attr(volcano_entity, 'max_temp') | float(0) > 300 }}"
   - action: climate.turn_on
     target:
       entity_id: "{{ volcano_entity }}"
   - repeat:
       for_each: "{{ temperatures | default([179, 185, 191, 199, 205, 211, 217, 230]) }}"
       sequence:
+        - variables:
+            rung: >-
+              {{ ((repeat.item | float * 9 / 5 + 32) | round(1)) if fahrenheit
+              else repeat.item | float }}
+            margin: "{{ 1.8 if fahrenheit else 1 }}"
         - action: climate.set_temperature
           data:
-            temperature: "{{ repeat.item }}"
+            temperature: "{{ rung }}"
           target:
             entity_id: "{{ volcano_entity }}"
         - alias: Wait for the device to reach the rung
           wait_template: >-
             {{ state_attr(volcano_entity, 'current_temperature') | float(0)
-            >= repeat.item | float }}
+            >= rung | float - margin | float }}
           timeout: "00:15:00"
           continue_on_timeout: true
         - if: "{{ not wait.completed }}"
@@ -865,9 +883,16 @@ fields:
 sequence:
   - variables:
       volcano_entity: "{{ volcano | default('climate.volcano_hybrid') }}"
+      # Temperatures here are °C. HA shows climate temperatures in your unit
+      # system, so on °F convert (the Volcano's 230 °C max shows as 446 °F).
+      fahrenheit: "{{ state_attr(volcano_entity, 'max_temp') | float(0) > 300 }}"
+      target: >-
+        {{ ((temperature | default(190) | float * 9 / 5 + 32) | round(1)) if fahrenheit
+        else temperature | default(190) | float }}
+      margin: "{{ 1.8 if fahrenheit else 1 }}"
   - action: climate.set_temperature
     data:
-      temperature: "{{ temperature | default(190) }}"
+      temperature: "{{ target }}"
     target:
       entity_id: "{{ volcano_entity }}"
   - action: climate.turn_on
@@ -876,7 +901,7 @@ sequence:
   - alias: Wait for heatup
     wait_template: >-
       {{ state_attr(volcano_entity, 'current_temperature') | float(0)
-      >= temperature | default(190) | float }}
+      >= target | float - margin | float }}
     timeout: "00:15:00"
     continue_on_timeout: true
   - if: "{{ not wait.completed }}"
