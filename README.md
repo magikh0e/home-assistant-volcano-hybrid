@@ -648,7 +648,7 @@ A script that runs a whole temperature ladder on its own, one bag per rung:
    1. Turns on the fan for 40s to fill it, then turns it off
 1. Turns off the Volcano after the last bag
 
-Everything is a script field, so the same script runs any ladder (see [Ready-made ladders](#ready-made-ladders)). Run it from the script's page to fill the fields in, or call it from a dashboard button or an automation with `data:`. If a rung isn't reached within 15 minutes the script turns the Volcano off and stops with an error.
+Pick your Volcano in the **Volcano** field (the thermostat entity is named after the device, so it isn't always `climate.volcano_hybrid`). Everything else is a script field too, so the same script runs any ladder (see [Ready-made ladders](#ready-made-ladders)). Run it from the script's page to fill the fields in, or call it from a dashboard button or an automation with `data:`. If a rung isn't reached within 15 minutes the script turns the Volcano off and stops with an error.
 
 List the temperatures low to high: a rung the chamber is already above is treated as reached, so stepping down doesn't wait for it to cool.
 
@@ -659,6 +659,15 @@ description: >-
   to fit a fresh bag, fills it, then moves on. Turns the Volcano off at the end.
 mode: single
 fields:
+  volcano:
+    name: Volcano
+    description: The Volcano's thermostat entity (it's named after the device).
+    default: climate.volcano_hybrid
+    selector:
+      entity:
+        filter:
+          - integration: volcano_hybrid
+            domain: climate
   temperatures:
     name: Temperatures
     description: Rungs in °C, in order. One bag is filled at each.
@@ -684,9 +693,11 @@ fields:
         max: 120
         unit_of_measurement: s
 sequence:
+  - variables:
+      volcano_entity: "{{ volcano | default('climate.volcano_hybrid') }}"
   - action: climate.turn_on
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
   - repeat:
       for_each: "{{ temperatures | default([179, 185, 191, 199, 205, 211, 217, 230]) }}"
       sequence:
@@ -694,10 +705,10 @@ sequence:
           data:
             temperature: "{{ repeat.item }}"
           target:
-            entity_id: climate.volcano_hybrid
+            entity_id: "{{ volcano_entity }}"
         - alias: Wait for the device to reach the rung
           wait_template: >-
-            {{ state_attr('climate.volcano_hybrid', 'current_temperature') | float(0)
+            {{ state_attr(volcano_entity, 'current_temperature') | float(0)
             >= repeat.item | float }}
           timeout: "00:15:00"
           continue_on_timeout: true
@@ -705,7 +716,7 @@ sequence:
           then:
             - action: climate.turn_off
               target:
-                entity_id: climate.volcano_hybrid
+                entity_id: "{{ volcano_entity }}"
             - stop: "Didn't reach {{ repeat.item }} °C within 15 minutes"
               error: true
         - alias: Time to fit a fresh bag
@@ -715,7 +726,7 @@ sequence:
           data:
             fan_mode: "on"
           target:
-            entity_id: climate.volcano_hybrid
+            entity_id: "{{ volcano_entity }}"
         - alias: Fill the bag
           delay:
             seconds: "{{ fill_seconds | default(40) | int }}"
@@ -723,10 +734,10 @@ sequence:
           data:
             fan_mode: "off"
           target:
-            entity_id: climate.volcano_hybrid
+            entity_id: "{{ volcano_entity }}"
   - action: climate.turn_off
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
 ```
 
 ### Hands-free whip session
@@ -740,6 +751,15 @@ description: >-
   moves on. Turns the Volcano off at the end.
 mode: single
 fields:
+  volcano:
+    name: Volcano
+    description: The Volcano's thermostat entity (it's named after the device).
+    default: climate.volcano_hybrid
+    selector:
+      entity:
+        filter:
+          - integration: volcano_hybrid
+            domain: climate
   temperatures:
     name: Temperatures
     description: Rungs in °C, in order.
@@ -756,9 +776,11 @@ fields:
         max: 30
         unit_of_measurement: min
 sequence:
+  - variables:
+      volcano_entity: "{{ volcano | default('climate.volcano_hybrid') }}"
   - action: climate.turn_on
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
   - repeat:
       for_each: "{{ temperatures | default([179, 185, 191, 199, 205, 211, 217, 230]) }}"
       sequence:
@@ -766,10 +788,10 @@ sequence:
           data:
             temperature: "{{ repeat.item }}"
           target:
-            entity_id: climate.volcano_hybrid
+            entity_id: "{{ volcano_entity }}"
         - alias: Wait for the device to reach the rung
           wait_template: >-
-            {{ state_attr('climate.volcano_hybrid', 'current_temperature') | float(0)
+            {{ state_attr(volcano_entity, 'current_temperature') | float(0)
             >= repeat.item | float }}
           timeout: "00:15:00"
           continue_on_timeout: true
@@ -777,7 +799,7 @@ sequence:
           then:
             - action: climate.turn_off
               target:
-                entity_id: climate.volcano_hybrid
+                entity_id: "{{ volcano_entity }}"
             - stop: "Didn't reach {{ repeat.item }} °C within 15 minutes"
               error: true
         - alias: Hold the rung
@@ -785,7 +807,7 @@ sequence:
             minutes: "{{ hold_minutes | default(3) | int }}"
   - action: climate.turn_off
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
 ```
 
 ### Party rounds
@@ -798,6 +820,15 @@ description: >-
   One temperature, a bag every few minutes, then the Volcano turns off.
 mode: single
 fields:
+  volcano:
+    name: Volcano
+    description: The Volcano's thermostat entity (it's named after the device).
+    default: climate.volcano_hybrid
+    selector:
+      entity:
+        filter:
+          - integration: volcano_hybrid
+            domain: climate
   temperature:
     name: Temperature
     default: 190
@@ -832,17 +863,19 @@ fields:
         max: 120
         unit_of_measurement: s
 sequence:
+  - variables:
+      volcano_entity: "{{ volcano | default('climate.volcano_hybrid') }}"
   - action: climate.set_temperature
     data:
       temperature: "{{ temperature | default(190) }}"
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
   - action: climate.turn_on
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
   - alias: Wait for heatup
     wait_template: >-
-      {{ state_attr('climate.volcano_hybrid', 'current_temperature') | float(0)
+      {{ state_attr(volcano_entity, 'current_temperature') | float(0)
       >= temperature | default(190) | float }}
     timeout: "00:15:00"
     continue_on_timeout: true
@@ -850,7 +883,7 @@ sequence:
     then:
       - action: climate.turn_off
         target:
-          entity_id: climate.volcano_hybrid
+          entity_id: "{{ volcano_entity }}"
       - stop: "Didn't heat up within 15 minutes"
         error: true
   - alias: Time to fit the first bag
@@ -863,7 +896,7 @@ sequence:
           data:
             fan_mode: "on"
           target:
-            entity_id: climate.volcano_hybrid
+            entity_id: "{{ volcano_entity }}"
         - alias: Fill the bag
           delay:
             seconds: "{{ fill_seconds | default(40) | int }}"
@@ -871,7 +904,7 @@ sequence:
           data:
             fan_mode: "off"
           target:
-            entity_id: climate.volcano_hybrid
+            entity_id: "{{ volcano_entity }}"
         - if: "{{ repeat.index < bags | default(8) | int }}"
           then:
             - alias: Pass it round, fit the next bag
@@ -879,7 +912,7 @@ sequence:
                 seconds: "{{ (gap_minutes | default(2.5) | float * 60) | int }}"
   - action: climate.turn_off
     target:
-      entity_id: climate.volcano_hybrid
+      entity_id: "{{ volcano_entity }}"
 ```
 
 ### Ready-made ladders
